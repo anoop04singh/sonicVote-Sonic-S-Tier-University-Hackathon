@@ -41,19 +41,23 @@
   }
 
   body {
-    @apply bg-black text-foreground flex items-center justify-center;
+    @apply bg-background text-foreground;
     min-height: 100vh;
+  }
+
+  /* Hide scrollbar for Chrome, Safari and Opera */
+  body::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Hide scrollbar for IE, Edge and Firefox */
+  body {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
   }
 }
 
 @layer components {
-  .aspect-ratio-wrapper {
-    @apply relative w-full h-full max-w-full max-h-full overflow-auto shadow-2xl bg-background;
-    aspect-ratio: 4 / 3;
-    max-width: 133.33vh; /* 100vh * 4/3 */
-    max-height: 100vh;
-  }
-
   .section-shaped {
     @apply relative overflow-hidden;
   }
