@@ -31,16 +31,19 @@ const Index = () => {
     <div className="space-y-16">
       {/* Hero Section */}
       <div className="text-center py-16 md:py-24">
-        <h1 className="text-5xl md:text-7xl font-bold tracking-tight bg-gradient-to-br from-blue-400 to-purple-600 bg-clip-text text-transparent">
+        <h1 className="text-5xl md:text-7xl font-bold tracking-tighter bg-gradient-to-br from-primary to-red-500 bg-clip-text text-transparent">
           SonicVote
         </h1>
         <p className="mt-6 max-w-2xl mx-auto text-lg text-muted-foreground">
           Streamlining the entire voting experience by letting you effortlessly create, manage, and participate in decentralized elections, all in one place.
         </p>
         <div className="mt-8 flex justify-center gap-4">
-          <Button size="lg">
-            <PlusCircle className="mr-2 h-5 w-5" /> Create Election
-          </Button>
+          <button className="animated-hero-button group">
+            <div className="flex items-center">
+              <PlusCircle className="mr-2 h-5 w-5 transition-colors duration-500 group-hover:text-background z-10 relative" />
+              <span className="button-content" data-text="Create Election">Create Election</span>
+            </div>
+          </button>
         </div>
       </div>
 
@@ -51,7 +54,7 @@ const Index = () => {
         </h2>
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {elections.map((election) => (
-            <Card key={election.id} className="flex flex-col bg-card/50 backdrop-blur-sm border-0 transition-all hover:bg-card/75">
+            <Card key={election.id} className="flex flex-col bg-card/50 backdrop-blur-sm border-0 transition-all hover:bg-card/75 hover:scale-105">
               <CardHeader>
                 <CardTitle>{election.title}</CardTitle>
                 <CardDescription>{election.description}</CardDescription>
@@ -69,8 +72,8 @@ const Index = () => {
                 </div>
               </CardContent>
               <CardFooter>
-                <Button variant="secondary" className="w-full">
-                  View Details <ArrowRight className="ml-2 h-4 w-4" />
+                <Button variant="secondary" className="w-full group">
+                  View Details <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
                 </Button>
               </CardFooter>
             </Card>
