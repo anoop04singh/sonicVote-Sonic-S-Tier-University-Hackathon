@@ -13,8 +13,8 @@
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 18 93% 48%; /* Updated to orange */
+    --primary-foreground: 224 71.4% 4.1%; /* Updated for contrast */
 
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
@@ -30,7 +30,7 @@
 
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
-    --ring: 217.2 91.2% 59.8%;
+    --ring: 18 93% 48%; /* Updated to orange */
     --radius: 0.5rem;
   }
 }
@@ -43,42 +43,56 @@
   body {
     @apply bg-background text-foreground;
     min-height: 100vh;
-  }
-
-  /* Hide scrollbar for Chrome, Safari and Opera */
-  body::-webkit-scrollbar {
-    display: none;
-  }
-
-  /* Hide scrollbar for IE, Edge and Firefox */
-  body {
-    -ms-overflow-style: none;  /* IE and Edge */
-    scrollbar-width: none;  /* Firefox */
+    background-color: hsl(var(--background));
+    background-image: radial-gradient(ellipse 50% 80% at 50% -20%, hsla(217, 91%, 60%, 0.3), transparent);
   }
 }
 
+/* Custom button styles inspired by Elementor template */
 @layer components {
-  .section-shaped {
-    @apply relative overflow-hidden;
+  .animated-hero-button {
+    @apply relative inline-flex items-center justify-center px-8 py-4 text-lg font-bold text-primary-foreground bg-primary rounded-full overflow-hidden transition-all duration-500 ease-in-out;
+    transform: scaleX(1);
   }
 
-  .shape {
-    @apply absolute top-0 left-0 w-full h-full;
-    background: linear-gradient(150deg, #5e72e4 15%, #825ee4 70%, #d782d9 94%);
+  .animated-hero-button:hover {
+    animation: animate-scaleX 0.6s cubic-bezier(0.4, 0, 0, 1);
   }
 
-  .shape-skew {
-    @apply transform -skew-y-6;
-    transform-origin: 0;
+  .animated-hero-button::after {
+    content: "";
+    @apply absolute left-0 bottom-0 w-full h-full bg-foreground transition-transform duration-500 ease-in-out rounded-t-full;
+    transform: translateY(100%);
   }
 
-  .shape span {
-    @apply absolute block rounded-full;
-    background: rgba(255, 255, 255, 0.1);
+  .animated-hero-button:hover::after {
+    transform: translateY(0%);
+    @apply rounded-none;
   }
 
-  .span-150 { @apply w-[150px] h-[150px]; }
-  .span-100 { @apply w-[100px] h-[100px]; }
-  .span-75 { @apply w-[75px] h-[75px]; }
-  .span-50 { @apply w-[50px] h-[50px]; }
+  .animated-hero-button .button-content {
+    @apply relative inline-block overflow-hidden z-10;
+  }
+
+  .animated-hero-button .button-content::after {
+    content: attr(data-text);
+    @apply absolute left-1/2 bottom-0 w-full h-full text-background transition-transform duration-500 ease-in-out;
+    transform: translate(-50%, 100%);
+  }
+
+  .animated-hero-button:hover .button-content::after {
+    transform: translate(-50%, 0%);
+  }
+}
+
+@keyframes animate-scaleX {
+  0% {
+    transform: scaleX(1);
+  }
+  50% {
+    transform: scaleX(1.05);
+  }
+  100% {
+    transform: scaleX(1);
+  }
 }
