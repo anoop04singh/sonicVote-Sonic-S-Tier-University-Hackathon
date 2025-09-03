@@ -1,0 +1,171 @@
+Project Overview
+Project Title
+SonicVote: A Decentralized Voting Platform on Sonic Testnet
+Introduction
+SonicVote is a blockchain-based voting platform designed for secure, transparent, and efficient elections. Built for a hackathon, it leverages the Sonic Testnet—a high-performance EVM-compatible Layer-1 blockchain capable of up to 400,000 transactions per second (TPS) with instant finality. This ensures scalability for large-scale voting without high gas fees or delays.
+The platform addresses traditional voting challenges like fraud, lack of transparency, and low participation by using blockchain for immutable vote recording and IPFS for decentralized metadata storage. A user-friendly dashboard allows administrators to create elections, voters to cast ballots, and observers to verify results.
+Key features:
+
+Election creation with customizable parameters (e.g., candidates, voting period).
+Multiple winner determination methods beyond simple majority (plurality) voting.
+Efficient vote recording on-chain with privacy considerations.
+IPFS integration for storing election metadata (e.g., candidate details, election descriptions).
+Pseudonymous voting tied to wallet addresses for verifiability without full anonymity (extendable with zero-knowledge proofs in future iterations).
+
+Problem Statement
+Traditional voting systems suffer from:
+
+Centralization: Vulnerable to tampering by authorities.
+Lack of transparency: Voters can't verify if their vote was counted correctly.
+Inefficiency: Paper ballots are slow and costly; electronic systems often lack auditability.
+Limited winner metrics: Majority vote can lead to unrepresentative outcomes (e.g., vote splitting).
+
+Blockchain solves these by providing decentralization, immutability, and cryptographic security. However, on-chain storage must be efficient to minimize costs, and alternative voting methods can improve fairness.
+Solution Overview
+SonicVote uses:
+
+Smart Contracts on Sonic Testnet for vote recording, tallying, and winner computation.
+IPFS for off-chain storage of election metadata, with Content Identifiers (CIDs) stored on-chain.
+Frontend Dashboard built with React.js and Web3.js for user interaction.
+Alternative Voting Metrics: Implements Ranked Choice Voting (RCV), Approval Voting, and Borda Count as options alongside majority vote.
+
+Votes are recorded on-chain via smart contract calls, ensuring immutability. For efficiency, a commit-reveal scheme is used to prevent last-minute influence while keeping storage minimal.
+Technologies Used
+
+Blockchain: Sonic Testnet (EVM-compatible, high TPS).
+Smart Contracts: Solidity (v0.8.20).
+Frontend: React.js, Web3.js (or ethers.js) for wallet integration (e.g., MetaMask).
+Storage: IPFS (via Pinata or Infura gateway for uploads).
+Tools: Hardhat for contract development/testing, Remix for quick prototyping.
+Other: Node.js for backend (if needed for IPFS uploads), OpenZeppelin for secure contracts.
+
+System Architecture
+The architecture is decentralized:
+
+Frontend Dashboard: Web app for users to connect wallets, create/view elections, and vote.
+Smart Contracts: Deployed on Sonic Testnet; handle election logic, vote storage, and tallying.
+IPFS: Stores JSON metadata files (e.g., {"electionName": "Hackathon Vote", "candidates": ["A", "B", "C"]}).
+Blockchain Interaction: Users sign transactions to vote; results are computed on-chain or via off-chain scripts for complex methods.
+Off-Chain Components: Optional backend for IPFS pinning and metadata generation.
+
+High-level flow:
+
+Admin creates election: Upload metadata to IPFS → Deploy/store CID in smart contract.
+Voter votes: Sign transaction to smart contract (commit hash first, reveal later).
+Tally: Contract computes winner based on selected method.
+
+Diagram (text-based):
+textUser (Wallet) --> Dashboard (React) --> Web3 Provider (MetaMask) --> Sonic Testnet Smart Contract
+                                            |
+                                            --> IPFS (Metadata Storage)
+Smart Contract Design
+Contracts are written in Solidity. Main contracts:
+
+ElectionFactory.sol: Creates new election instances.
+Election.sol: Manages a single election, including voting and tallying.
+
+Key Features in Election.sol
+
+Structs:
+soliditystruct Election {
+    string metadataCID; // IPFS CID for election details
+    uint256 startTime;
+    uint256 endTime;
+    address[] candidates; // Or use IDs for flexibility
+    mapping(address => bytes32) commitments; // For commit-reveal
+    mapping(address => uint256[]) votes; // Vote data (array for ranked/approval)
+    uint256 voteType; // 0: Majority, 1: RCV, 2: Approval, 3: Borda
+    bool finalized;
+}
+
+Functions:
+
+createElection(string memory _cid, uint256 _start, uint256 _end, address[] memory _candidates, uint256 _voteType): Initializes election.
+commitVote(bytes32 _commitment): Voter commits hash of vote (efficient, hides choice).
+revealVote(uint256[] memory _voteData, uint256 _salt): Reveal after voting period; verify against commitment.
+tallyVotes(): Computes winner based on voteType.
+getWinner(): Returns winner after tally.
+
+
+
+Efficient Vote Recording and Storage
+To optimize gas and privacy:
+
+Commit-Reveal Scheme: Voters first commit a keccak256 hash of their vote + salt (e.g., keccak256(abi.encodePacked(voteData, salt))). This stores only a 32-byte hash on-chain initially (low cost). After voting ends, voters reveal the voteData and salt; contract verifies hash matches and records vote.
+Storage Optimization: Use mappings instead of arrays for votes to avoid dynamic array gas costs. For large elections, tally incrementally during reveals to avoid O(n) loops.
+On-Chain vs Off-Chain: Simple tallies (majority, approval) done on-chain. Complex (RCV) simulated off-chain via events/logs, but verified on-chain.
+Gas Efficiency: Sonic's high TPS reduces fees; batch reveals if possible (though user-initiated).
+Privacy: Pseudonymous (wallet addresses visible). For better privacy, integrate zk-SNARKs (e.g., via Semaphore library) in future.
+
+This method ensures votes are immutable, verifiable (anyone can query contract), and efficient (minimal storage per vote: ~32 bytes initially).
+Frontend Dashboard
+Built with React.js:
+
+Pages:
+
+Home: List active elections (query contract for details, fetch metadata from IPFS via gateway like ipfs.io/ipfs/<cid>).</cid>
+Create Election: Form for admin (wallet-based access control). Upload metadata to IPFS, then call contract to create.
+Vote: Connect wallet, select/commit vote based on type (e.g., dropdown for majority, ranking UI for RCV).
+Results: Display tallies and winner; real-time via contract events.
+
+
+Integration:
+
+Use ethers.js to interact with contracts (e.g., contract.commitVote(hash)).
+IPFS: Use js-ipfs or a service like Pinata for uploads: const cid = await ipfs.add(JSON.stringify(metadata));.
+Wallet: MetaMask for signing on Sonic Testnet (add custom RPC: https://rpc.sonic-testnet.com, Chain ID: 64165).
+
+
+
+Voting Mechanisms and Formulas
+The platform supports multiple methods to determine winners, selected during election creation. Below are descriptions and formulas.
+1. Majority (Plurality) Vote
+
+Default: Candidate with most votes wins (even if <50%).
+Formula: Winner = argmax( votes[c] ) for each candidate c.
+Implementation: Simple counter mapping in contract.
+
+2. Ranked Choice Voting (RCV) / Instant Runoff
+
+Voters rank candidates (e.g., [1st: A, 2nd: B]).
+Process: If no majority (>50%), eliminate lowest-vote candidate, redistribute their votes to next preferences. Repeat until majority.
+Formula (pseudocode):
+textwhile no candidate has >50% of active votes:
+    eliminate candidate with min first-preference votes
+    for each ballot voting for eliminated:
+        shift preferences up (next choice becomes first)
+Winner = candidate with majority
+
+On-Chain: Store ranked arrays per voter; tally via loop (gas-limited; for hackathon, limit to <10 candidates). Alternative: Emit events, compute off-chain.
+
+3. Approval Voting
+
+Voters approve any number of candidates.
+Winner: Candidate with most approvals.
+Formula: For each candidate c, score[c] = sum(1 if approved by voter v). Winner = argmax(score[c]).
+Implementation: Votes as bitmask or array; efficient for small candidate sets.
+
+4. Borda Count
+
+Voters rank candidates; points assigned based on rank (n points for 1st, n-1 for 2nd, ..., 1 for last, where n = num candidates).
+Winner: Candidate with highest total points.
+Formula: For ranking r (1 to n, 1=highest), points = n - r + 1. Total_score[c] = sum(points for c across ballots).
+Implementation: Similar to RCV; process rankings in tally function.
+
+These methods promote consensus and reduce strategic voting. For math-heavy computations (e.g., RCV simulations), the contract can use loops with gas checks.
+Data Storage
+
+Metadata on IPFS: Election details (name, description, candidates, rules) as JSON. Uploaded via frontend; CID stored on-chain (32 bytes, cheap). Access: ipfs.cat(cid) or gateway.
+Votes on Blockchain: As described in commit-reveal. Full vote data revealed and stored in mappings post-voting.
+Efficiency: IPFS offloads large data (e.g., images/descriptions); blockchain only holds hashes/references.
+
+Network Details:
+Network Details
+Network name
+Sonic Testnet 
+RPC URL
+https://rpc.testnet.soniclabs.com
+Chain ID
+14601 
+Currency symbol
+S 
