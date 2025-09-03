@@ -16,7 +16,7 @@ const Hero = () => {
         <span className="span-50" style={{ bottom: '1%', right: '2%' }}></span>
         <span className="span-100" style={{ bottom: '1%', left: '1%', right: 'auto' }}></span>
       </div>
-      <div className="container shape-container flex items-center">
+      <div className="container shape-container flex items-center py-32">
         <div className="col px-0">
           <div className="row justify-center items-center">
             <div className="col-lg-7 text-center pt-lg">

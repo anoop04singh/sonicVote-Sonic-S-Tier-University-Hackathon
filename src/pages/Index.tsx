@@ -31,7 +31,7 @@ const Index = () => {
   return (
     <div>
       <Hero />
-      <section className="py-16">
+      <section className="relative py-16 mt-[-200px]">
         <div className="container">
           <div className="row justify-content-center">
             <div className="col-lg-12">
