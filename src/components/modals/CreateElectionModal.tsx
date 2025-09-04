@@ -32,7 +32,7 @@ import { showSuccess } from "@/utils/toast";
 const formSchema = z.object({
   title: z.string().min(5, "Title must be at least 5 characters long."),
   description: z.string().min(10, "Description must be at least 10 characters long."),
-  electionType: z.enum(["simple", "quadratic"], { required_error: "Please select an election type." }),
+  electionType: z.enum(["simple", "quadratic", "rankedChoice", "cumulative"], { required_error: "Please select an election type." }),
   options: z.array(z.object({ value: z.string().min(1, "Option cannot be empty.") })).min(2, "Must have at least two options."),
   endDate: z.date({ required_error: "An end date is required." }),
 });
@@ -114,12 +114,13 @@ export const CreateElectionModal = ({ isOpen, onOpenChange }: CreateElectionModa
                         <TooltipTrigger asChild>
                           <Info className="h-4 w-4 ml-2 text-muted-foreground cursor-pointer" />
                         </TooltipTrigger>
-                        <TooltipContent>
-                          <p className="max-w-xs">
-                            <b>Simple Majority:</b> 1 person, 1 vote.
-                            <br />
-                            <b>Quadratic:</b> Express preference strength by casting multiple votes.
-                          </p>
+                        <TooltipContent side="right" className="max-w-xs p-4">
+                          <div className="space-y-2 text-sm">
+                            <p><b>Simple Majority:</b> Each voter gets one vote. The option with the most votes wins.</p>
+                            <p><b>Quadratic Voting:</b> Voters buy votes using credits. The cost per vote increases quadratically, allowing for nuanced preference expression.</p>
+                            <p><b>Ranked-Choice:</b> Voters rank options by preference. If no option wins a majority, the last-place option is eliminated and its votes are redistributed.</p>
+                            <p><b>Cumulative Voting:</b> Voters receive a block of votes to distribute among options as they see fit, including giving all votes to one option.</p>
+                          </div>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
@@ -133,6 +134,8 @@ export const CreateElectionModal = ({ isOpen, onOpenChange }: CreateElectionModa
                     <SelectContent>
                       <SelectItem value="simple">Simple Majority</SelectItem>
                       <SelectItem value="quadratic">Quadratic Voting</SelectItem>
+                      <SelectItem value="rankedChoice">Ranked-Choice Voting</SelectItem>
+                      <SelectItem value="cumulative">Cumulative Voting</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />

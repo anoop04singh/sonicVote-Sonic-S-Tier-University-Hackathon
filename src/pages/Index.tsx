@@ -6,45 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PlusCircle, ArrowRight, Users, Clock, Vote } from "lucide-react";
 import { CreateElectionModal } from "@/components/modals/CreateElectionModal";
 import { useWallet } from "@/context/WalletContext";
-
-const elections = [
-  {
-    id: 1,
-    title: "Community Governance Vote",
-    description: "Vote on the next major feature for the platform.",
-    status: "Active",
-    type: "Simple Majority",
-    voters: 315,
-    endDate: "2024-12-15T23:59:59Z",
-  },
-  {
-    id: 2,
-    title: "Hackathon Winner Selection",
-    description: "Choose the best project from the hackathon finalists.",
-    status: "Active",
-    type: "Quadratic",
-    voters: 128,
-    endDate: "2024-12-10T23:59:59Z",
-  },
-  {
-    id: 3,
-    title: "DAO Treasury Allocation",
-    description: "Decide how to allocate the treasury funds for Q3.",
-    status: "Ended",
-    type: "Simple Majority",
-    voters: 542,
-    endDate: "2024-07-30T23:59:59Z",
-  },
-  {
-    id: 4,
-    title: "New Validator Program",
-    description: "Vote on the proposal for a new community validator program.",
-    status: "Upcoming",
-    type: "Simple Majority",
-    voters: 0,
-    endDate: "2025-01-20T23:59:59Z",
-  },
-];
+import { elections } from "@/data/mockElections";
 
 const ElectionCard = ({ election }: { election: typeof elections[0] }) => {
   const getStatusChip = (status: string) => {
@@ -57,6 +19,16 @@ const ElectionCard = ({ election }: { election: typeof elections[0] }) => {
         return 'bg-blue-900/50 text-blue-300 border border-blue-700/60';
       default:
         return '';
+    }
+  };
+
+  const getElectionTypeLabel = (type: string) => {
+    switch (type) {
+      case 'Simple Majority': return 'Simple Majority';
+      case 'Quadratic': return 'Quadratic';
+      case 'Ranked-Choice': return 'Ranked-Choice';
+      case 'Cumulative': return 'Cumulative';
+      default: return type;
     }
   };
 
@@ -75,7 +47,7 @@ const ElectionCard = ({ election }: { election: typeof elections[0] }) => {
         <div className="flex justify-between items-center text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
             <Vote className="h-4 w-4" />
-            <span>{election.type}</span>
+            <span>{getElectionTypeLabel(election.type)}</span>
           </div>
           <div className="flex items-center gap-2">
             <Users className="h-4 w-4" />
