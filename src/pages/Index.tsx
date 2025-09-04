@@ -6,11 +6,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PlusCircle, ArrowRight, Users, Clock, Vote } from "lucide-react";
 import { CreateElectionModal } from "@/components/modals/CreateElectionModal";
 import { useWallet } from "@/context/WalletContext";
-import { elections as mockElections } from "@/data/mockElections"; // For metadata simulation
 import { ethers } from "ethers";
 import { ELECTION_FACTORY_ADDRESS, ELECTION_FACTORY_ABI, ELECTION_ABI } from "@/contracts";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/EmptyState";
+import { fetchFromIPFS } from "@/lib/ipfs";
 
 const ElectionCard = ({ election }: { election: any }) => {
   const getStatusChip = (status: number) => {
@@ -35,12 +35,12 @@ const ElectionCard = ({ election }: { election: any }) => {
     <Card className="flex flex-col bg-card/50 backdrop-blur-sm border-0 transition-all duration-300 hover:bg-card/75 hover:scale-105 hover:shadow-lg hover:shadow-primary/10">
       <CardHeader>
         <div className="flex justify-between items-start">
-          <CardTitle>{election.title}</CardTitle>
+          <CardTitle>{election.title || "Loading..."}</CardTitle>
           <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${getStatusChip(election.status)}`}>
             {["Upcoming", "Active", "Ended"][election.status]}
           </span>
         </div>
-        <CardDescription>{election.description}</CardDescription>
+        <CardDescription>{election.description || "Fetching details from IPFS."}</CardDescription>
       </CardHeader>
       <CardContent className="flex-grow space-y-4">
         <div className="flex justify-between items-center text-sm text-muted-foreground">
@@ -86,14 +86,12 @@ const Index = () => {
         const factoryContract = new ethers.Contract(ELECTION_FACTORY_ADDRESS, ELECTION_FACTORY_ABI, provider);
         const electionAddresses = await factoryContract.getDeployedElections();
 
-        const electionsData = await Promise.all(
-          electionAddresses.map(async (address: string, index: number) => {
+        const electionsDataPromises = electionAddresses.map(async (address: string) => {
+          try {
             const electionContract = new ethers.Contract(address, ELECTION_ABI, provider);
             const details = await electionContract.getElectionDetails();
             
-            const mockMeta = mockElections[index % mockElections.length];
-            
-            return {
+            const onChainData = {
               address,
               creator: details[0],
               status: Number(details[1]),
@@ -101,12 +99,19 @@ const Index = () => {
               endDate: details[3],
               metadataURI: details[4],
               totalVoters: details[5],
-              title: mockMeta.title,
-              description: mockMeta.description,
-              options: mockMeta.options,
             };
-          })
-        );
+
+            const ipfsHash = onChainData.metadataURI.replace('ipfs://', '');
+            const metadata = await fetchFromIPFS(ipfsHash);
+
+            return { ...onChainData, ...metadata };
+          } catch (e) {
+            console.error(`Failed to load election ${address}:`, e);
+            return null; // Return null for failed fetches
+          }
+        });
+
+        const electionsData = (await Promise.all(electionsDataPromises)).filter(e => e !== null);
         setElections(electionsData.reverse());
       } catch (error) {
         console.error("Failed to fetch elections:", error);

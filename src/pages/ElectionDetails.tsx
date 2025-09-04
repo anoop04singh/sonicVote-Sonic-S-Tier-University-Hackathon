@@ -9,15 +9,14 @@ import { ArrowLeft, Vote, Users, Clock, Info } from "lucide-react";
 import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
 import { useWallet } from "@/context/WalletContext";
 import CountdownTimer from "@/components/CountdownTimer";
-import { elections as mockElections } from "@/data/mockElections";
 import { ethers } from "ethers";
 import { ELECTION_ABI } from "@/contracts";
 import { Skeleton } from "@/components/ui/skeleton";
+import { fetchFromIPFS } from "@/lib/ipfs";
 
 const COLORS = ["#FF8042", "#0088FE", "#00C49F", "#FFBB28"];
 
 // --- Voting Card Components ---
-// (These components remain largely the same, but their props and handlers will be driven by live data)
 const SimpleVotingCard = ({ options, onVote, disabled }: any) => (
     <Card className="bg-card/50 backdrop-blur-sm border-0">
       <CardHeader>
@@ -39,9 +38,9 @@ const SimpleVotingCard = ({ options, onVote, disabled }: any) => (
     const [votes, setVotes] = useState<{ [key: string]: number }>({});
     const [credits, setCredits] = useState(100);
   
-    const handleVoteChange = (optionId: string, value: string) => {
+    const handleVoteChange = (optionText: string, value: string) => {
       const numVotes = parseInt(value) || 0;
-      const newVotes = { ...votes, [optionId]: numVotes };
+      const newVotes = { ...votes, [optionText]: numVotes };
       const totalCost = Object.values(newVotes).reduce((acc, v) => acc + (v * v), 0);
       if (totalCost <= 100) {
         setVotes(newVotes);
@@ -62,7 +61,7 @@ const SimpleVotingCard = ({ options, onVote, disabled }: any) => (
           {options.map((option: any) => (
             <div key={option.id} className="flex items-center justify-between p-4 border rounded-lg bg-card/70">
               <span className="font-medium">{option.text}</span>
-              <Input type="number" min="0" className="w-20" placeholder="0" value={votes[option.id] || ''} onChange={(e) => handleVoteChange(option.id, e.target.value)} disabled={disabled} />
+              <Input type="number" min="0" className="w-20" placeholder="0" value={votes[option.text] || ''} onChange={(e) => handleVoteChange(option.text, e.target.value)} disabled={disabled} />
             </div>
           ))}
           <Button onClick={() => onVote(votes)} disabled={disabled || totalVotes === 0} className="w-full"><Vote className="mr-2 h-4 w-4" /> Submit {totalVotes} Votes</Button>
@@ -74,8 +73,8 @@ const SimpleVotingCard = ({ options, onVote, disabled }: any) => (
   const RankedChoiceVotingCard = ({ options, onVote, disabled }: any) => {
     const [ranks, setRanks] = useState<{ [key: string]: number | undefined }>({});
     const usedRanks = Object.values(ranks).filter(r => r !== undefined);
-    const handleRankChange = (optionId: string, rank: string) => {
-      setRanks(prev => ({ ...prev, [optionId]: parseInt(rank) || undefined }));
+    const handleRankChange = (optionText: string, rank: string) => {
+      setRanks(prev => ({ ...prev, [optionText]: parseInt(rank) || undefined }));
     };
     return (
       <Card className="bg-card/50 backdrop-blur-sm border-0">
@@ -87,11 +86,11 @@ const SimpleVotingCard = ({ options, onVote, disabled }: any) => (
           {options.map((option: any) => (
             <div key={option.id} className="flex items-center justify-between p-4 border rounded-lg bg-card/70">
               <span className="font-medium">{option.text}</span>
-              <Select onValueChange={(value) => handleRankChange(option.id, value)} disabled={disabled}>
+              <Select onValueChange={(value) => handleRankChange(option.text, value)} disabled={disabled}>
                 <SelectTrigger className="w-24"><SelectValue placeholder="Rank" /></SelectTrigger>
                 <SelectContent>
                   {Array.from({ length: options.length }, (_, i) => i + 1).map(rank => (
-                    <SelectItem key={rank} value={String(rank)} disabled={usedRanks.includes(rank) && ranks[option.id] !== rank}>
+                    <SelectItem key={rank} value={String(rank)} disabled={usedRanks.includes(rank) && ranks[option.text] !== rank}>
                       {rank}
                     </SelectItem>
                   ))}
@@ -108,9 +107,9 @@ const SimpleVotingCard = ({ options, onVote, disabled }: any) => (
   const CumulativeVotingCard = ({ options, onVote, disabled }: any) => {
     const [votes, setVotes] = useState<{ [key: string]: number }>({});
     const [credits, setCredits] = useState(10);
-    const handleVoteChange = (optionId: string, value: string) => {
+    const handleVoteChange = (optionText: string, value: string) => {
       const numVotes = parseInt(value) || 0;
-      const newVotes = { ...votes, [optionId]: numVotes };
+      const newVotes = { ...votes, [optionText]: numVotes };
       const totalCost = Object.values(newVotes).reduce((acc, v) => acc + v, 0);
       if (totalCost <= 10) {
         setVotes(newVotes);
@@ -131,7 +130,7 @@ const SimpleVotingCard = ({ options, onVote, disabled }: any) => (
           {options.map((option: any) => (
             <div key={option.id} className="flex items-center justify-between p-4 border rounded-lg bg-card/70">
               <span className="font-medium">{option.text}</span>
-              <Input type="number" min="0" className="w-20" placeholder="0" value={votes[option.id] || ''} onChange={(e) => handleVoteChange(option.id, e.target.value)} disabled={disabled} />
+              <Input type="number" min="0" className="w-20" placeholder="0" value={votes[option.text] || ''} onChange={(e) => handleVoteChange(option.text, e.target.value)} disabled={disabled} />
             </div>
           ))}
           <Button onClick={() => onVote(votes)} disabled={disabled || totalVotes === 0} className="w-full"><Vote className="mr-2 h-4 w-4" /> Submit {totalVotes} Votes</Button>
@@ -154,17 +153,7 @@ const ElectionDetails = () => {
         const electionContract = new ethers.Contract(address, ELECTION_ABI, provider);
         const details = await electionContract.getElectionDetails();
         
-        // Find corresponding mock metadata
-        const mockMeta = mockElections.find(e => e.id === (parseInt(address.slice(-2), 16) % mockElections.length) + 1) || mockElections[0];
-
-        const optionsWithVotes = await Promise.all(
-            mockMeta.options.map(async (option: any) => {
-                const votes = await electionContract.results(option.text); // Assuming option text is the ID
-                return { ...option, votes: Number(votes) };
-            })
-        );
-
-        setElection({
+        const onChainData = {
           address,
           creator: details[0],
           status: Number(details[1]),
@@ -172,8 +161,21 @@ const ElectionDetails = () => {
           endDate: details[3],
           metadataURI: details[4],
           totalVoters: details[5],
-          title: mockMeta.title,
-          description: mockMeta.description,
+        };
+
+        const ipfsHash = onChainData.metadataURI.replace('ipfs://', '');
+        const metadata = await fetchFromIPFS(ipfsHash);
+
+        const optionsWithVotes = await Promise.all(
+            metadata.options.map(async (option: any) => {
+                const votes = await electionContract.results(option.text);
+                return { ...option, votes: Number(votes) };
+            })
+        );
+
+        setElection({
+          ...onChainData,
+          ...metadata,
           options: optionsWithVotes,
         });
       } catch (error) {
@@ -195,7 +197,7 @@ const ElectionDetails = () => {
     try {
       const electionContract = new ethers.Contract(address, ELECTION_ABI, signer);
       let tx;
-      const voteURI = "ipfs://placeholder_vote_data"; // Simulated IPFS URI
+      const voteURI = "ipfs://placeholder_vote_data"; // Simulated IPFS URI for vote receipt
 
       switch (election.electionType) {
         case 0: // Simple Majority
@@ -208,10 +210,9 @@ const ElectionDetails = () => {
           tx = await electionContract.castVoteDistribution(optionIds, votes, voteURI);
           break;
         case 2: // Ranked-Choice
-          const rankedOptions = election.options
-            .map((opt: any) => ({ ...opt, rank: voteData[opt.id] }))
-            .sort((a: any, b: any) => a.rank - b.rank)
-            .map((opt: any) => opt.text);
+          const rankedOptions = Object.entries(voteData)
+            .sort(([, rankA], [, rankB]) => (rankA as number) - (rankB as number))
+            .map(([optionText]) => optionText);
           tx = await electionContract.castVoteRankedChoice(rankedOptions, voteURI);
           break;
         default:

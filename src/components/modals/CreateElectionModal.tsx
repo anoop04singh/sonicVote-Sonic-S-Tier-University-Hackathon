@@ -31,6 +31,7 @@ import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast
 import { useWallet } from "@/context/WalletContext";
 import { ethers } from "ethers";
 import { ELECTION_FACTORY_ADDRESS, ELECTION_FACTORY_ABI } from "@/contracts";
+import { uploadToPinata } from "@/lib/ipfs";
 
 const formSchema = z.object({
   title: z.string().min(5, "Title must be at least 5 characters long."),
@@ -67,8 +68,21 @@ export const CreateElectionModal = ({ isOpen, onOpenChange }: CreateElectionModa
       showError("Please connect your wallet to create an election.");
       return;
     }
-    const toastId = showLoading("Creating your election on the blockchain...");
+    const toastId = showLoading("Uploading election data to IPFS...");
     try {
+      // 1. Prepare and upload metadata to IPFS
+      const metadata = {
+        title: values.title,
+        description: values.description,
+        options: values.options.map((opt, index) => ({ id: String.fromCharCode(97 + index), text: opt.value })),
+      };
+      const ipfsHash = await uploadToPinata(metadata);
+      const metadataURI = `ipfs://${ipfsHash}`;
+      
+      dismissToast(toastId);
+      showLoading("Deploying your election contract...");
+
+      // 2. Create election on-chain with the IPFS URI
       const factoryContract = new ethers.Contract(ELECTION_FACTORY_ADDRESS, ELECTION_FACTORY_ABI, signer);
       
       const electionTypeMap = {
@@ -79,13 +93,7 @@ export const CreateElectionModal = ({ isOpen, onOpenChange }: CreateElectionModa
       };
       const electionTypeEnum = electionTypeMap[values.electionType];
       const endDateTimestamp = Math.floor(values.endDate.getTime() / 1000);
-      const optionIds = values.options.map(opt => opt.value);
-      
-      // In a real app, you would upload this to IPFS and get a URI
-      const metadata = { title: values.title, description: values.description, options: values.options.map((o, i) => ({ id: i, text: o.value })) };
-      const metadataURI = `ipfs://mock_${Date.now()}`; // Simulated IPFS URI
-      console.log("Simulated Metadata:", metadata);
-
+      const optionIds = metadata.options.map(opt => opt.text); // Use full text as ID for simplicity in contract
 
       const tx = await factoryContract.createElection(
         endDateTimestamp,
@@ -94,17 +102,16 @@ export const CreateElectionModal = ({ isOpen, onOpenChange }: CreateElectionModa
         optionIds
       );
 
-      await tx.wait(); // Wait for the transaction to be mined
+      await tx.wait();
 
       dismissToast(toastId);
       showSuccess("Election created successfully!");
       onOpenChange(false);
       form.reset();
-      // Consider a way to trigger a refresh of the elections list on the main page
     } catch (error: any) {
       dismissToast(toastId);
       console.error("Failed to create election:", error);
-      showError(error?.reason || "An error occurred during creation.");
+      showError(error?.message || error?.reason || "An error occurred during creation.");
     }
   }
 
