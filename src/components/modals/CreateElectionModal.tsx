@@ -22,7 +22,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, PlusCircle, X } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { CalendarIcon, PlusCircle, X, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { showSuccess } from "@/utils/toast";
@@ -30,6 +32,7 @@ import { showSuccess } from "@/utils/toast";
 const formSchema = z.object({
   title: z.string().min(5, "Title must be at least 5 characters long."),
   description: z.string().min(10, "Description must be at least 10 characters long."),
+  electionType: z.enum(["simple", "quadratic"], { required_error: "Please select an election type." }),
   options: z.array(z.object({ value: z.string().min(1, "Option cannot be empty.") })).min(2, "Must have at least two options."),
   endDate: z.date({ required_error: "An end date is required." }),
 });
@@ -99,6 +102,43 @@ export const CreateElectionModal = ({ isOpen, onOpenChange }: CreateElectionModa
                 </FormItem>
               )}
             />
+            <FormField
+              control={form.control}
+              name="electionType"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="flex items-center">
+                    Election Type
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="h-4 w-4 ml-2 text-muted-foreground cursor-pointer" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="max-w-xs">
+                            <b>Simple Majority:</b> 1 person, 1 vote.
+                            <br />
+                            <b>Quadratic:</b> Express preference strength by casting multiple votes.
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a voting method" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="simple">Simple Majority</SelectItem>
+                      <SelectItem value="quadratic">Quadratic Voting</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <div>
               <FormLabel>Options</FormLabel>
               <div className="space-y-2 mt-2">
@@ -114,7 +154,7 @@ export const CreateElectionModal = ({ isOpen, onOpenChange }: CreateElectionModa
                             <Input placeholder={`Option ${index + 1}`} {...field} />
                           </FormControl>
                           {fields.length > 2 && (
-                            <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}>
+                            <Button type="button" variant="destructive" size="icon" onClick={() => remove(index)}>
                               <X className="h-4 w-4" />
                             </Button>
                           )}
@@ -166,7 +206,7 @@ export const CreateElectionModal = ({ isOpen, onOpenChange }: CreateElectionModa
                         mode="single"
                         selected={field.value}
                         onSelect={field.onChange}
-                        disabled={(date) => date < new Date()}
+                        disabled={(date) => date < new Date(new Date().setHours(0,0,0,0))}
                         initialFocus
                       />
                     </PopoverContent>

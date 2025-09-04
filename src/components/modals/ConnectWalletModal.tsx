@@ -6,6 +6,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useWallet } from "@/context/WalletContext";
 import { Wallet } from "lucide-react";
 
 interface ConnectWalletModalProps {
@@ -20,6 +21,13 @@ const wallets = [
 ];
 
 export const ConnectWalletModal = ({ isOpen, onOpenChange }: ConnectWalletModalProps) => {
+  const { connectWallet } = useWallet();
+
+  const handleConnect = () => {
+    connectWallet();
+    onOpenChange(false);
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
@@ -31,7 +39,7 @@ export const ConnectWalletModal = ({ isOpen, onOpenChange }: ConnectWalletModalP
         </DialogHeader>
         <div className="flex flex-col space-y-2">
           {wallets.map((wallet) => (
-            <Button key={wallet.name} variant="outline" className="w-full justify-start text-lg p-6">
+            <Button key={wallet.name} variant="outline" className="w-full justify-start text-lg p-6" onClick={handleConnect}>
               <div className="mr-4">{wallet.icon}</div>
               {wallet.name}
             </Button>
