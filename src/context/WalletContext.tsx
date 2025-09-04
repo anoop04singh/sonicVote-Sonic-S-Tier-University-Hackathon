@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { ethers, BrowserProvider, Signer } from 'ethers';
 import { showSuccess, showError } from '@/utils/toast';
+import { sonicNetwork } from '@/config/network';
 
 interface WalletContextType {
   isConnected: boolean;
@@ -12,6 +13,40 @@ interface WalletContextType {
 }
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
+
+const switchNetwork = async () => {
+  if (!window.ethereum) throw new Error("No crypto wallet found");
+  try {
+    await window.ethereum.request({
+      method: 'wallet_switchEthereumChain',
+      params: [{ chainId: sonicNetwork.chainId }],
+    });
+  } catch (switchError: any) {
+    // This error code indicates that the chain has not been added to MetaMask.
+    if (switchError.code === 4902) {
+      try {
+        await window.ethereum.request({
+          method: 'wallet_addEthereumChain',
+          params: [
+            {
+              chainId: sonicNetwork.chainId,
+              chainName: sonicNetwork.chainName,
+              rpcUrls: sonicNetwork.rpcUrls,
+              nativeCurrency: sonicNetwork.nativeCurrency,
+              blockExplorerUrls: sonicNetwork.blockExplorerUrls,
+            },
+          ],
+        });
+      } catch (addError) {
+        console.error("Failed to add Sonic network:", addError);
+        throw new Error("Failed to add Sonic network to your wallet.");
+      }
+    } else {
+      console.error("Failed to switch network:", switchError);
+      throw new Error("Failed to switch to the Sonic network.");
+    }
+  }
+};
 
 export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const [isConnected, setIsConnected] = useState(false);
@@ -26,6 +61,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     }
 
     try {
+      await switchNetwork();
+
       const browserProvider = new ethers.BrowserProvider(window.ethereum);
       const signerInstance = await browserProvider.getSigner();
       const walletAddress = await signerInstance.getAddress();
@@ -37,9 +74,13 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       showSuccess("Wallet connected successfully!");
 
       localStorage.setItem('walletConnected', 'true');
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to connect wallet:", error);
-      showError("Failed to connect wallet. Please check the console.");
+      if (error.code === 4001) {
+        showError("Connection request was rejected by the user.");
+      } else {
+        showError(error.message || "Failed to connect wallet.");
+      }
     }
   };
 
@@ -57,15 +98,19 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       if (accounts.length === 0) {
         disconnectWallet();
       } else if (address !== accounts[0]) {
-        connectWallet(); // Re-connect with the new account
+        connectWallet();
       }
+    };
+
+    const handleChainChanged = () => {
+      window.location.reload();
     };
 
     if (window.ethereum) {
       window.ethereum.on('accountsChanged', handleAccountsChanged);
+      window.ethereum.on('chainChanged', handleChainChanged);
     }
 
-    // Auto-reconnect if previously connected
     if (localStorage.getItem('walletConnected') === 'true') {
       connectWallet();
     }
@@ -73,6 +118,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       if (window.ethereum) {
         window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
+        window.ethereum.removeListener('chainChanged', handleChainChanged);
       }
     };
   }, []);

@@ -10,6 +10,7 @@ import { elections as mockElections } from "@/data/mockElections"; // For metada
 import { ethers } from "ethers";
 import { ELECTION_FACTORY_ADDRESS, ELECTION_FACTORY_ABI, ELECTION_ABI } from "@/contracts";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/EmptyState";
 
 const ElectionCard = ({ election }: { election: any }) => {
   const getStatusChip = (status: number) => {
@@ -76,7 +77,10 @@ const Index = () => {
 
   useEffect(() => {
     const fetchElections = async () => {
-      if (!provider) return;
+      if (!provider) {
+        setIsLoading(false);
+        return;
+      }
       setIsLoading(true);
       try {
         const factoryContract = new ethers.Contract(ELECTION_FACTORY_ADDRESS, ELECTION_FACTORY_ABI, provider);
@@ -87,8 +91,7 @@ const Index = () => {
             const electionContract = new ethers.Contract(address, ELECTION_ABI, provider);
             const details = await electionContract.getElectionDetails();
             
-            // Merge on-chain data with simulated IPFS metadata
-            const mockMeta = mockElections[index % mockElections.length]; // Use mock data cyclically as a fallback
+            const mockMeta = mockElections[index % mockElections.length];
             
             return {
               address,
@@ -98,14 +101,13 @@ const Index = () => {
               endDate: details[3],
               metadataURI: details[4],
               totalVoters: details[5],
-              // Simulated metadata from mock file
               title: mockMeta.title,
               description: mockMeta.description,
               options: mockMeta.options,
             };
           })
         );
-        setElections(electionsData.reverse()); // Show newest first
+        setElections(electionsData.reverse());
       } catch (error) {
         console.error("Failed to fetch elections:", error);
       } finally {
@@ -163,23 +165,44 @@ const Index = () => {
             </TabsList>
             <TabsContent value="active">
               {isLoading ? renderSkeletons() : (
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                  {filteredElections(1).map((election) => <ElectionCard key={election.address} election={election} />)}
-                </div>
+                filteredElections(1).length > 0 ? (
+                  <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                    {filteredElections(1).map((election) => <ElectionCard key={election.address} election={election} />)}
+                  </div>
+                ) : (
+                  <EmptyState 
+                    title="No Active Elections"
+                    description="There are currently no active elections. Check back later or create a new one!"
+                  />
+                )
               )}
             </TabsContent>
             <TabsContent value="upcoming">
               {isLoading ? renderSkeletons() : (
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                  {filteredElections(0).map((election) => <ElectionCard key={election.address} election={election} />)}
-                </div>
+                filteredElections(0).length > 0 ? (
+                  <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                    {filteredElections(0).map((election) => <ElectionCard key={election.address} election={election} />)}
+                  </div>
+                ) : (
+                  <EmptyState 
+                    title="No Upcoming Elections"
+                    description="There are no elections scheduled to start soon."
+                  />
+                )
               )}
             </TabsContent>
             <TabsContent value="ended">
               {isLoading ? renderSkeletons() : (
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                  {filteredElections(2).map((election) => <ElectionCard key={election.address} election={election} />)}
-                </div>
+                filteredElections(2).length > 0 ? (
+                  <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                    {filteredElections(2).map((election) => <ElectionCard key={election.address} election={election} />)}
+                  </div>
+                ) : (
+                  <EmptyState 
+                    title="No Past Elections"
+                    description="There is no history of completed elections yet."
+                  />
+                )
               )}
             </TabsContent>
           </Tabs>
