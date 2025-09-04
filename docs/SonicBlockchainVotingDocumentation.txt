@@ -3,16 +3,11 @@ Sonic Blockchain - Network Details for dApp Integration
 This document provides the necessary details to connect a decentralized application (dApp) to the Sonic Testnet.
 
 - Network Name: Sonic Testnet
-- RPC URL: https://testnet.rpc.sonic.superprotocol.com/
-- Chain ID (Decimal): 696969
-- Chain ID (Hex): 0xAAAA9
-- Currency Symbol: SNC
-- Block Explorer URL: https://testnet.explorer.sonic.superprotocol.com/
-
-Instructions for MetaMask:
-1. Open MetaMask and click on the network dropdown.
-2. Select "Add network".
-3. Choose "Add a network manually".
-4. Fill in the details above to add the Sonic Testnet to your wallet.
+- RPC URL: https://rpc.testnet.soniclabs.com
+- Chain ID (Decimal): 14601
+- Chain ID (Hex): 0x3909
+- Currency Symbol: S
+- Block Explorer URL: https://testnet.sonicscan.org
+- Faucet URL: https://testnet.soniclabs.com/account
 
 The application has been configured to automatically prompt users to add or switch to this network upon connecting their wallet.

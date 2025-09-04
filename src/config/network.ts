@@ -2,13 +2,13 @@
 // Please update them if the network configuration changes.
 
 export const sonicNetwork = {
-  chainId: '0xAAAA9', // 696969 in decimal
+  chainId: '0x3909', // 14601 in decimal
   chainName: 'Sonic Testnet',
   nativeCurrency: {
     name: 'Sonic',
-    symbol: 'SNC',
+    symbol: 'S',
     decimals: 18,
   },
-  rpcUrls: ['https://testnet.rpc.sonic.superprotocol.com/'],
-  blockExplorerUrls: ['https://testnet.explorer.sonic.superprotocol.com/'],
+  rpcUrls: ['https://rpc.testnet.soniclabs.com'],
+  blockExplorerUrls: ['https://testnet.sonicscan.org'],
 };
