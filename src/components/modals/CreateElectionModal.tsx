@@ -27,12 +27,15 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { CalendarIcon, PlusCircle, X, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { showSuccess } from "@/utils/toast";
+import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
+import { useWallet } from "@/context/WalletContext";
+import { ethers } from "ethers";
+import { ELECTION_FACTORY_ADDRESS, ELECTION_FACTORY_ABI } from "@/contracts";
 
 const formSchema = z.object({
   title: z.string().min(5, "Title must be at least 5 characters long."),
   description: z.string().min(10, "Description must be at least 10 characters long."),
-  electionType: z.enum(["simple", "quadratic", "rankedChoice", "cumulative"], { required_error: "Please select an election type." }),
+  electionType: z.enum(["Simple Majority", "Quadratic", "Ranked-Choice", "Cumulative"], { required_error: "Please select an election type." }),
   options: z.array(z.object({ value: z.string().min(1, "Option cannot be empty.") })).min(2, "Must have at least two options."),
   endDate: z.date({ required_error: "An end date is required." }),
 });
@@ -43,6 +46,7 @@ interface CreateElectionModalProps {
 }
 
 export const CreateElectionModal = ({ isOpen, onOpenChange }: CreateElectionModalProps) => {
+  const { signer } = useWallet();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -58,11 +62,50 @@ export const CreateElectionModal = ({ isOpen, onOpenChange }: CreateElectionModa
     name: "options",
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log(values);
-    showSuccess("Election created successfully!");
-    onOpenChange(false);
-    form.reset();
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    if (!signer) {
+      showError("Please connect your wallet to create an election.");
+      return;
+    }
+    const toastId = showLoading("Creating your election on the blockchain...");
+    try {
+      const factoryContract = new ethers.Contract(ELECTION_FACTORY_ADDRESS, ELECTION_FACTORY_ABI, signer);
+      
+      const electionTypeMap = {
+        "Simple Majority": 0,
+        "Quadratic": 1,
+        "Ranked-Choice": 2,
+        "Cumulative": 3,
+      };
+      const electionTypeEnum = electionTypeMap[values.electionType];
+      const endDateTimestamp = Math.floor(values.endDate.getTime() / 1000);
+      const optionIds = values.options.map(opt => opt.value);
+      
+      // In a real app, you would upload this to IPFS and get a URI
+      const metadata = { title: values.title, description: values.description, options: values.options.map((o, i) => ({ id: i, text: o.value })) };
+      const metadataURI = `ipfs://mock_${Date.now()}`; // Simulated IPFS URI
+      console.log("Simulated Metadata:", metadata);
+
+
+      const tx = await factoryContract.createElection(
+        endDateTimestamp,
+        electionTypeEnum,
+        metadataURI,
+        optionIds
+      );
+
+      await tx.wait(); // Wait for the transaction to be mined
+
+      dismissToast(toastId);
+      showSuccess("Election created successfully!");
+      onOpenChange(false);
+      form.reset();
+      // Consider a way to trigger a refresh of the elections list on the main page
+    } catch (error: any) {
+      dismissToast(toastId);
+      console.error("Failed to create election:", error);
+      showError(error?.reason || "An error occurred during creation.");
+    }
   }
 
   return (
@@ -71,7 +114,7 @@ export const CreateElectionModal = ({ isOpen, onOpenChange }: CreateElectionModa
         <DialogHeader>
           <DialogTitle>Create New Election</DialogTitle>
           <DialogDescription>
-            Fill in the details below to create a new election.
+            Fill in the details below to create a new election. This will deploy a new smart contract.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -132,10 +175,10 @@ export const CreateElectionModal = ({ isOpen, onOpenChange }: CreateElectionModa
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="simple">Simple Majority</SelectItem>
-                      <SelectItem value="quadratic">Quadratic Voting</SelectItem>
-                      <SelectItem value="rankedChoice">Ranked-Choice Voting</SelectItem>
-                      <SelectItem value="cumulative">Cumulative Voting</SelectItem>
+                      <SelectItem value="Simple Majority">Simple Majority</SelectItem>
+                      <SelectItem value="Quadratic">Quadratic Voting</SelectItem>
+                      <SelectItem value="Ranked-Choice">Ranked-Choice Voting</SelectItem>
+                      <SelectItem value="Cumulative">Cumulative Voting</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />

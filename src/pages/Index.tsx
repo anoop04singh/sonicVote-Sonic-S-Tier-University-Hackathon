@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,30 +6,28 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PlusCircle, ArrowRight, Users, Clock, Vote } from "lucide-react";
 import { CreateElectionModal } from "@/components/modals/CreateElectionModal";
 import { useWallet } from "@/context/WalletContext";
-import { elections } from "@/data/mockElections";
+import { elections as mockElections } from "@/data/mockElections"; // For metadata simulation
+import { ethers } from "ethers";
+import { ELECTION_FACTORY_ADDRESS, ELECTION_FACTORY_ABI, ELECTION_ABI } from "@/contracts";
+import { Skeleton } from "@/components/ui/skeleton";
 
-const ElectionCard = ({ election }: { election: typeof elections[0] }) => {
-  const getStatusChip = (status: string) => {
+const ElectionCard = ({ election }: { election: any }) => {
+  const getStatusChip = (status: number) => {
     switch (status) {
-      case 'Active':
+      case 1: // Active
         return 'bg-green-900/50 text-green-300 border border-green-700/60';
-      case 'Ended':
+      case 2: // Ended
         return 'bg-gray-700/50 text-gray-300 border border-gray-600/60';
-      case 'Upcoming':
+      case 0: // Upcoming
         return 'bg-blue-900/50 text-blue-300 border border-blue-700/60';
       default:
         return '';
     }
   };
 
-  const getElectionTypeLabel = (type: string) => {
-    switch (type) {
-      case 'Simple Majority': return 'Simple Majority';
-      case 'Quadratic': return 'Quadratic';
-      case 'Ranked-Choice': return 'Ranked-Choice';
-      case 'Cumulative': return 'Cumulative';
-      default: return type;
-    }
+  const getElectionTypeLabel = (type: number) => {
+    const types = ["Simple Majority", "Quadratic", "Ranked-Choice", "Cumulative"];
+    return types[type] || "Unknown";
   };
 
   return (
@@ -38,7 +36,7 @@ const ElectionCard = ({ election }: { election: typeof elections[0] }) => {
         <div className="flex justify-between items-start">
           <CardTitle>{election.title}</CardTitle>
           <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${getStatusChip(election.status)}`}>
-            {election.status}
+            {["Upcoming", "Active", "Ended"][election.status]}
           </span>
         </div>
         <CardDescription>{election.description}</CardDescription>
@@ -47,21 +45,21 @@ const ElectionCard = ({ election }: { election: typeof elections[0] }) => {
         <div className="flex justify-between items-center text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
             <Vote className="h-4 w-4" />
-            <span>{getElectionTypeLabel(election.type)}</span>
+            <span>{getElectionTypeLabel(election.electionType)}</span>
           </div>
           <div className="flex items-center gap-2">
             <Users className="h-4 w-4" />
-            <span>{election.voters} Voters</span>
+            <span>{election.totalVoters.toString()} Voters</span>
           </div>
         </div>
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Clock className="h-4 w-4" />
-          <span>Ends: {new Date(election.endDate).toLocaleDateString()}</span>
+          <span>Ends: {new Date(Number(election.endDate) * 1000).toLocaleDateString()}</span>
         </div>
       </CardContent>
       <CardFooter>
         <Button asChild variant="secondary" className="w-full group">
-          <Link to={`/election/${election.id}`}>
+          <Link to={`/election/${election.address}`}>
             View Details <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
           </Link>
         </Button>
@@ -72,9 +70,65 @@ const ElectionCard = ({ election }: { election: typeof elections[0] }) => {
 
 const Index = () => {
   const [isCreateModalOpen, setCreateModalOpen] = useState(false);
-  const { isConnected } = useWallet();
+  const { isConnected, provider } = useWallet();
+  const [elections, setElections] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const filteredElections = (status: string) => elections.filter(e => e.status === status);
+  useEffect(() => {
+    const fetchElections = async () => {
+      if (!provider) return;
+      setIsLoading(true);
+      try {
+        const factoryContract = new ethers.Contract(ELECTION_FACTORY_ADDRESS, ELECTION_FACTORY_ABI, provider);
+        const electionAddresses = await factoryContract.getDeployedElections();
+
+        const electionsData = await Promise.all(
+          electionAddresses.map(async (address: string, index: number) => {
+            const electionContract = new ethers.Contract(address, ELECTION_ABI, provider);
+            const details = await electionContract.getElectionDetails();
+            
+            // Merge on-chain data with simulated IPFS metadata
+            const mockMeta = mockElections[index % mockElections.length]; // Use mock data cyclically as a fallback
+            
+            return {
+              address,
+              creator: details[0],
+              status: Number(details[1]),
+              electionType: Number(details[2]),
+              endDate: details[3],
+              metadataURI: details[4],
+              totalVoters: details[5],
+              // Simulated metadata from mock file
+              title: mockMeta.title,
+              description: mockMeta.description,
+              options: mockMeta.options,
+            };
+          })
+        );
+        setElections(electionsData.reverse()); // Show newest first
+      } catch (error) {
+        console.error("Failed to fetch elections:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchElections();
+  }, [provider]);
+
+  const filteredElections = (status: number) => elections.filter(e => e.status === status);
+
+  const renderSkeletons = () => (
+    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      {[...Array(3)].map((_, i) => (
+        <Card key={i} className="flex flex-col bg-card/50 backdrop-blur-sm border-0">
+          <CardHeader><Skeleton className="h-6 w-3/4" /><Skeleton className="h-4 w-full mt-2" /></CardHeader>
+          <CardContent className="space-y-4"><Skeleton className="h-4 w-1/2" /><Skeleton className="h-4 w-2/3" /></CardContent>
+          <CardFooter><Skeleton className="h-10 w-full" /></CardFooter>
+        </Card>
+      ))}
+    </div>
+  );
 
   return (
     <>
@@ -108,25 +162,25 @@ const Index = () => {
               <TabsTrigger value="ended">Ended</TabsTrigger>
             </TabsList>
             <TabsContent value="active">
-              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {filteredElections("Active").map((election) => (
-                  <ElectionCard key={election.id} election={election} />
-                ))}
-              </div>
+              {isLoading ? renderSkeletons() : (
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {filteredElections(1).map((election) => <ElectionCard key={election.address} election={election} />)}
+                </div>
+              )}
             </TabsContent>
             <TabsContent value="upcoming">
-              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {filteredElections("Upcoming").map((election) => (
-                  <ElectionCard key={election.id} election={election} />
-                ))}
-              </div>
+              {isLoading ? renderSkeletons() : (
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {filteredElections(0).map((election) => <ElectionCard key={election.address} election={election} />)}
+                </div>
+              )}
             </TabsContent>
             <TabsContent value="ended">
-              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {filteredElections("Ended").map((election) => (
-                  <ElectionCard key={election.id} election={election} />
-                ))}
-              </div>
+              {isLoading ? renderSkeletons() : (
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {filteredElections(2).map((election) => <ElectionCard key={election.address} election={election} />)}
+                </div>
+              )}
             </TabsContent>
           </Tabs>
         </div>
