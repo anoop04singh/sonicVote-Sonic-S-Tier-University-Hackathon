@@ -44,7 +44,18 @@
     @apply bg-background text-foreground;
     min-height: 100vh;
     background-color: hsl(var(--background));
-    background-image: radial-gradient(ellipse 50% 80% at 50% -20%, hsla(217, 91%, 60%, 0.3), transparent);
+    /* Layering gradients: The new interactive one goes on top */
+    background-image: 
+      radial-gradient(
+        600px circle at var(--x) var(--y),
+        hsla(18, 93%, 48%, 0.15), /* Primary color with low opacity */
+        transparent 40%
+      ),
+      radial-gradient(
+        ellipse 50% 80% at 50% -20%, 
+        hsla(217, 91%, 60%, 0.3), 
+        transparent
+      );
   }
 }
 

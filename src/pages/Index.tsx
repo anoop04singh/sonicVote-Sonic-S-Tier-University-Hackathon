@@ -11,8 +11,9 @@ import { ELECTION_FACTORY_ADDRESS, ELECTION_FACTORY_ABI, ELECTION_ABI } from "@/
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/EmptyState";
 import { fetchFromIPFS } from "@/lib/ipfs";
+import { motion } from "framer-motion";
 
-const ElectionCard = ({ election }: { election: any }) => {
+const ElectionCard = ({ election, index }: { election: any, index: number }) => {
   const getStatusChip = (status: number) => {
     switch (status) {
       case 1: // Active
@@ -32,40 +33,46 @@ const ElectionCard = ({ election }: { election: any }) => {
   };
 
   return (
-    <Card className="flex flex-col bg-card/50 backdrop-blur-sm border-0 transition-all duration-300 hover:bg-card/75 hover:scale-105 hover:shadow-lg hover:shadow-primary/10">
-      <CardHeader>
-        <div className="flex justify-between items-start">
-          <CardTitle>{election.title || "Loading..."}</CardTitle>
-          <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${getStatusChip(election.status)}`}>
-            {["Upcoming", "Active", "Ended"][election.status]}
-          </span>
-        </div>
-        <CardDescription>{election.description || "Fetching details from IPFS."}</CardDescription>
-      </CardHeader>
-      <CardContent className="flex-grow space-y-4">
-        <div className="flex justify-between items-center text-sm text-muted-foreground">
-          <div className="flex items-center gap-2">
-            <Vote className="h-4 w-4" />
-            <span>{getElectionTypeLabel(election.electionType)}</span>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, delay: index * 0.1 }}
+    >
+      <Card className="flex flex-col h-full bg-card/50 backdrop-blur-sm border-0 transition-all duration-300 hover:bg-card/75 hover:scale-105 hover:shadow-lg hover:shadow-primary/10">
+        <CardHeader>
+          <div className="flex justify-between items-start">
+            <CardTitle>{election.title || "Loading..."}</CardTitle>
+            <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${getStatusChip(election.status)}`}>
+              {["Upcoming", "Active", "Ended"][election.status]}
+            </span>
           </div>
-          <div className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            <span>{election.totalVoters.toString()} Voters</span>
+          <CardDescription>{election.description || "Fetching details from IPFS."}</CardDescription>
+        </CardHeader>
+        <CardContent className="flex-grow space-y-4">
+          <div className="flex justify-between items-center text-sm text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <Vote className="h-4 w-4" />
+              <span>{getElectionTypeLabel(election.electionType)}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              <span>{election.totalVoters.toString()} Voters</span>
+            </div>
           </div>
-        </div>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Clock className="h-4 w-4" />
-          <span>Ends: {new Date(Number(election.endDate) * 1000).toLocaleDateString()}</span>
-        </div>
-      </CardContent>
-      <CardFooter>
-        <Button asChild variant="secondary" className="w-full group">
-          <Link to={`/election/${election.address}`}>
-            View Details <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-          </Link>
-        </Button>
-      </CardFooter>
-    </Card>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Clock className="h-4 w-4" />
+            <span>Ends: {new Date(Number(election.endDate) * 1000).toLocaleDateString()}</span>
+          </div>
+        </CardContent>
+        <CardFooter>
+          <Button asChild variant="secondary" className="w-full group">
+            <Link to={`/election/${election.address}`}>
+              View Details <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+            </Link>
+          </Button>
+        </CardFooter>
+      </Card>
+    </motion.div>
   );
 };
 
@@ -107,7 +114,7 @@ const Index = () => {
             return { ...onChainData, ...metadata };
           } catch (e) {
             console.error(`Failed to load election ${address}:`, e);
-            return null; // Return null for failed fetches
+            return null;
           }
         });
 
@@ -142,22 +149,38 @@ const Index = () => {
       <div className="space-y-16">
         {/* Hero Section */}
         <div className="text-center py-16 md:py-24">
-          <h1 className="text-5xl md:text-7xl font-bold tracking-tighter bg-gradient-to-br from-primary to-red-500 bg-clip-text text-transparent animate-gradient-x">
+          <motion.h1 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, ease: "easeOut" }}
+            className="text-5xl md:text-7xl font-bold tracking-tighter bg-gradient-to-br from-primary to-red-500 bg-clip-text text-transparent animate-gradient-x"
+          >
             SonicVote
-          </h1>
-          <p className="mt-6 max-w-2xl mx-auto text-lg text-muted-foreground">
+          </motion.h1>
+          <motion.p 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3, duration: 0.7 }}
+            className="mt-6 max-w-2xl mx-auto text-lg text-muted-foreground"
+          >
             A decentralized, transparent, and secure voting platform built on the Sonic blockchain. Create, manage, and participate in elections with confidence.
-          </p>
-          <div className="mt-8 flex justify-center gap-4">
-            {isConnected && (
-              <button className="animated-hero-button group" onClick={() => setCreateModalOpen(true)}>
-                <div className="flex items-center">
-                  <PlusCircle className="mr-2 h-5 w-5 transition-colors duration-500 group-hover:text-background z-10 relative" />
-                  <span className="button-content" data-text="Create Election">Create Election</span>
-                </div>
-              </button>
-            )}
-          </div>
+          </motion.p>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5, duration: 0.7 }}
+          >
+            <div className="mt-8 flex justify-center gap-4">
+              {isConnected && (
+                <button className="animated-hero-button group" onClick={() => setCreateModalOpen(true)}>
+                  <div className="flex items-center">
+                    <PlusCircle className="mr-2 h-5 w-5 transition-colors duration-500 group-hover:text-background z-10 relative" />
+                    <span className="button-content" data-text="Create Election">Create Election</span>
+                  </div>
+                </button>
+              )}
+            </div>
+          </motion.div>
         </div>
 
         {/* Elections List */}
@@ -172,7 +195,7 @@ const Index = () => {
               {isLoading ? renderSkeletons() : (
                 filteredElections(1).length > 0 ? (
                   <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                    {filteredElections(1).map((election) => <ElectionCard key={election.address} election={election} />)}
+                    {filteredElections(1).map((election, index) => <ElectionCard key={election.address} election={election} index={index} />)}
                   </div>
                 ) : (
                   <EmptyState 
@@ -186,7 +209,7 @@ const Index = () => {
               {isLoading ? renderSkeletons() : (
                 filteredElections(0).length > 0 ? (
                   <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                    {filteredElections(0).map((election) => <ElectionCard key={election.address} election={election} />)}
+                    {filteredElections(0).map((election, index) => <ElectionCard key={election.address} election={election} index={index} />)}
                   </div>
                 ) : (
                   <EmptyState 
@@ -200,7 +223,7 @@ const Index = () => {
               {isLoading ? renderSkeletons() : (
                 filteredElections(2).length > 0 ? (
                   <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                    {filteredElections(2).map((election) => <ElectionCard key={election.address} election={election} />)}
+                    {filteredElections(2).map((election, index) => <ElectionCard key={election.address} election={election} index={index} />)}
                   </div>
                 ) : (
                   <EmptyState 
