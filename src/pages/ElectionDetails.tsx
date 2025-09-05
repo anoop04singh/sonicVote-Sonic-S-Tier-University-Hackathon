@@ -210,9 +210,9 @@ const ElectionDetails = () => {
           break;
         case 1: // Quadratic
         case 3: // Cumulative
-          const optionIds = Object.keys(voteData);
-          const votes = optionIds.map(id => voteData[id]);
-          tx = await electionContract.castVoteDistribution(optionIds, votes, voteURI);
+          const allOptionIds = election.options.map((opt: any) => opt.id);
+          const votesToSend = allOptionIds.map((id: string) => voteData[id] || 0);
+          tx = await electionContract.castVoteDistribution(allOptionIds, votesToSend, voteURI);
           break;
         case 2: // Ranked-Choice
           const rankedOptions = Object.entries(voteData)
