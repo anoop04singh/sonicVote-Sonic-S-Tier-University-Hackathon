@@ -76,7 +76,7 @@ export const CreateElectionModal = ({ isOpen, onOpenChange }: CreateElectionModa
         description: values.description,
         options: values.options.map((opt, index) => ({ id: String.fromCharCode(97 + index), text: opt.value })),
       };
-      const ipfsHash = await uploadToPinata(metadata);
+      const ipfsHash = await uploadToPinata(metadata, `Election: ${values.title}`);
       const metadataURI = `ipfs://${ipfsHash}`;
       
       dismissToast(toastId);

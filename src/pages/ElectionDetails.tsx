@@ -166,12 +166,16 @@ const ElectionDetails = () => {
         const ipfsHash = onChainData.metadataURI.replace('ipfs://', '');
         const metadata = await fetchFromIPFS(ipfsHash);
 
-        const optionsWithVotes = await Promise.all(
-            metadata.options.map(async (option: any) => {
+        const optionsWithVotesPromises = metadata.options.map(async (option: any) => {
+            try {
                 const votes = await electionContract.results(option.text);
                 return { ...option, votes: Number(votes) };
-            })
-        );
+            } catch (e) {
+                console.error(`Failed to get votes for option "${option.text}":`, e);
+                return { ...option, votes: 0 }; // Default to 0 votes on failure
+            }
+        });
+        const optionsWithVotes = await Promise.all(optionsWithVotesPromises);
 
         setElection({
           ...onChainData,
@@ -180,6 +184,7 @@ const ElectionDetails = () => {
         });
       } catch (error) {
         console.error("Failed to fetch election details:", error);
+        showError("Could not load election details. It may be an invalid address or a network issue.");
       } finally {
         setIsLoading(false);
       }
