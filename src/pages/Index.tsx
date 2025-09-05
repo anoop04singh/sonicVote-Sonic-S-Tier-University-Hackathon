@@ -151,9 +151,9 @@ const Index = () => {
 
   return (
     <>
-      <div className="space-y-8">
+      <div className="space-y-12">
         {/* Hero Section */}
-        <div className="relative text-center pt-16 pb-32 md:pt-24 md:pb-40">
+        <div className="text-center pt-16 pb-16 md:pt-24 md:pb-20">
           <motion.h1 
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -184,48 +184,48 @@ const Index = () => {
               )}
             </div>
           </motion.div>
-
-          {/* Platform Metrics */}
-          {!isLoading && elections.length > 0 && (
-            <motion.div 
-              className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full max-w-4xl grid gap-8 md:grid-cols-3"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.8 }}
-            >
-              <div className="flex flex-col items-center">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Archive className="h-4 w-4" />
-                  <span>Total Elections</span>
-                </div>
-                <p className="text-4xl font-bold mt-1">
-                  <AnimatedCounter to={totalElections} />
-                </p>
-                <p className="text-xs text-muted-foreground">All elections created on the platform.</p>
-              </div>
-              <div className="flex flex-col items-center">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Activity className="h-4 w-4" />
-                  <span>Active Elections</span>
-                </div>
-                <p className="text-4xl font-bold mt-1">
-                  <AnimatedCounter to={activeElections} />
-                </p>
-                <p className="text-xs text-muted-foreground">Currently open for voting.</p>
-              </div>
-              <div className="flex flex-col items-center">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Users className="h-4 w-4" />
-                  <span>Total Votes Cast</span>
-                </div>
-                <p className="text-4xl font-bold mt-1">
-                  <AnimatedCounter to={totalVotes} />
-                </p>
-                <p className="text-xs text-muted-foreground">Total votes across all elections.</p>
-              </div>
-            </motion.div>
-          )}
         </div>
+
+        {/* Platform Metrics */}
+        {!isLoading && elections.length > 0 && (
+          <motion.div 
+            className="w-full max-w-4xl mx-auto grid gap-8 md:grid-cols-3"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+          >
+            <div className="flex flex-col items-center">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Archive className="h-4 w-4" />
+                <span>Total Elections</span>
+              </div>
+              <p className="text-4xl font-bold mt-1">
+                <AnimatedCounter to={totalElections} />
+              </p>
+              <p className="text-xs text-muted-foreground">All elections created on the platform.</p>
+            </div>
+            <div className="flex flex-col items-center">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Activity className="h-4 w-4" />
+                <span>Active Elections</span>
+              </div>
+              <p className="text-4xl font-bold mt-1">
+                <AnimatedCounter to={activeElections} />
+              </p>
+              <p className="text-xs text-muted-foreground">Currently open for voting.</p>
+            </div>
+            <div className="flex flex-col items-center">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Users className="h-4 w-4" />
+                <span>Total Votes Cast</span>
+              </div>
+              <p className="text-4xl font-bold mt-1">
+                <AnimatedCounter to={totalVotes} />
+              </p>
+              <p className="text-xs text-muted-foreground">Total votes across all elections.</p>
+            </div>
+          </motion.div>
+        )}
 
         {/* Elections List */}
         <div>
