@@ -62,37 +62,8 @@
 /* Custom button styles inspired by Elementor template */
 @layer components {
   .animated-hero-button {
-    @apply relative inline-flex items-center justify-center px-8 py-4 text-lg font-bold text-primary-foreground bg-primary rounded-full overflow-hidden transition-all duration-500 ease-in-out;
-    transform: scaleX(1);
-  }
-
-  .animated-hero-button:hover {
-    animation: animate-scaleX 0.6s cubic-bezier(0.4, 0, 0, 1);
-  }
-
-  .animated-hero-button::after {
-    content: "";
-    @apply absolute left-0 bottom-0 w-full h-full bg-foreground transition-transform duration-500 ease-in-out rounded-t-full;
-    transform: translateY(100%);
-  }
-
-  .animated-hero-button:hover::after {
-    transform: translateY(0%);
-    @apply rounded-none;
-  }
-
-  .animated-hero-button .button-content {
-    @apply relative inline-block overflow-hidden z-10;
-  }
-
-  .animated-hero-button .button-content::after {
-    content: attr(data-text);
-    @apply absolute left-1/2 bottom-0 w-full h-full text-background transition-transform duration-500 ease-in-out;
-    transform: translate(-50%, 100%);
-  }
-
-  .animated-hero-button:hover .button-content::after {
-    transform: translate(-50%, 0%);
+    @apply inline-flex items-center justify-center px-8 py-4 text-lg font-bold text-primary-foreground bg-primary rounded-full transition-all duration-300 ease-in-out;
+    @apply hover:bg-primary/90 hover:scale-105 hover:shadow-lg hover:shadow-primary/20;
   }
 }
 

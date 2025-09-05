@@ -172,11 +172,9 @@ const Index = () => {
           >
             <div className="mt-8 flex justify-center gap-4">
               {isConnected && (
-                <button className="animated-hero-button group" onClick={() => setCreateModalOpen(true)}>
-                  <div className="flex items-center">
-                    <PlusCircle className="mr-2 h-5 w-5 transition-colors duration-500 group-hover:text-background z-10 relative" />
-                    <span className="button-content" data-text="Create Election">Create Election</span>
-                  </div>
+                <button className="animated-hero-button" onClick={() => setCreateModalOpen(true)}>
+                  <PlusCircle className="mr-2 h-5 w-5" />
+                  Create Election
                 </button>
               )}
             </div>

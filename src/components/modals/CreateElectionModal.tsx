@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, useFieldArray } from "react-hook-form";
 import * as z from "zod";
@@ -27,11 +28,12 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { CalendarIcon, PlusCircle, X, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
+import { showSuccess, showError } from "@/utils/toast";
 import { useWallet } from "@/context/WalletContext";
 import { ethers } from "ethers";
 import { ELECTION_FACTORY_ADDRESS, ELECTION_FACTORY_ABI } from "@/contracts";
 import { uploadToPinata } from "@/lib/ipfs";
+import { LoadingModal } from "./LoadingModal";
 
 const formSchema = z.object({
   title: z.string().min(5, "Title must be at least 5 characters long."),
@@ -39,6 +41,7 @@ const formSchema = z.object({
   electionType: z.enum(["Simple Majority", "Quadratic", "Ranked-Choice", "Cumulative"], { required_error: "Please select an election type." }),
   options: z.array(z.object({ value: z.string().min(1, "Option cannot be empty.") })).min(2, "Must have at least two options."),
   endDate: z.date({ required_error: "An end date is required." }),
+  voteCredits: z.coerce.number().optional(),
 });
 
 interface CreateElectionModalProps {
@@ -48,6 +51,9 @@ interface CreateElectionModalProps {
 
 export const CreateElectionModal = ({ isOpen, onOpenChange }: CreateElectionModalProps) => {
   const { signer } = useWallet();
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState("");
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -55,6 +61,7 @@ export const CreateElectionModal = ({ isOpen, onOpenChange }: CreateElectionModa
       description: "",
       options: [{ value: "" }, { value: "" }],
       endDate: undefined,
+      voteCredits: 100,
     },
   });
 
@@ -63,24 +70,31 @@ export const CreateElectionModal = ({ isOpen, onOpenChange }: CreateElectionModa
     name: "options",
   });
 
+  const electionType = form.watch("electionType");
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!signer) {
       showError("Please connect your wallet to create an election.");
       return;
     }
-    const toastId = showLoading("Uploading election data to IPFS...");
+    
+    setLoadingMessage("Uploading election data to IPFS...");
+    setIsLoading(true);
+
     try {
       // 1. Prepare and upload metadata to IPFS
-      const metadata = {
+      const metadata: { [key: string]: any } = {
         title: values.title,
         description: values.description,
         options: values.options.map((opt, index) => ({ id: String.fromCharCode(97 + index), text: opt.value })),
       };
+      if (values.electionType === "Quadratic" || values.electionType === "Cumulative") {
+        metadata.voteCredits = values.voteCredits;
+      }
       const ipfsHash = await uploadToPinata(metadata);
       const metadataURI = `ipfs://${ipfsHash}`;
       
-      dismissToast(toastId);
-      showLoading("Deploying your election contract...");
+      setLoadingMessage("Deploying your election contract...");
 
       // 2. Create election on-chain with the IPFS URI
       const factoryContract = new ethers.Contract(ELECTION_FACTORY_ADDRESS, ELECTION_FACTORY_ABI, signer);
@@ -93,7 +107,7 @@ export const CreateElectionModal = ({ isOpen, onOpenChange }: CreateElectionModa
       };
       const electionTypeEnum = electionTypeMap[values.electionType];
       const endDateTimestamp = Math.floor(values.endDate.getTime() / 1000);
-      const optionIds = metadata.options.map(opt => opt.text); // Use full text as ID for simplicity in contract
+      const optionIds = metadata.options.map((opt: any) => opt.text);
 
       const tx = await factoryContract.createElection(
         endDateTimestamp,
@@ -104,177 +118,199 @@ export const CreateElectionModal = ({ isOpen, onOpenChange }: CreateElectionModa
 
       await tx.wait();
 
-      dismissToast(toastId);
       showSuccess("Election created successfully!");
       onOpenChange(false);
       form.reset();
     } catch (error: any) {
-      dismissToast(toastId);
       console.error("Failed to create election:", error);
       showError(error?.message || error?.reason || "An error occurred during creation.");
+    } finally {
+      setIsLoading(false);
     }
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px]">
-        <DialogHeader>
-          <DialogTitle>Create New Election</DialogTitle>
-          <DialogDescription>
-            Fill in the details below to create a new election. This will deploy a new smart contract.
-          </DialogDescription>
-        </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="title"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Title</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g., Community Governance Vote" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Description</FormLabel>
-                  <FormControl>
-                    <Textarea placeholder="Describe the purpose of this election." {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="electionType"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="flex items-center">
-                    Election Type
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Info className="h-4 w-4 ml-2 text-muted-foreground cursor-pointer" />
-                        </TooltipTrigger>
-                        <TooltipContent side="right" className="max-w-xs p-4">
-                          <div className="space-y-2 text-sm">
-                            <p><b>Simple Majority:</b> Each voter gets one vote. The option with the most votes wins.</p>
-                            <p><b>Quadratic Voting:</b> Voters buy votes using credits. The cost per vote increases quadratically, allowing for nuanced preference expression.</p>
-                            <p><b>Ranked-Choice:</b> Voters rank options by preference. If no option wins a majority, the last-place option is eliminated and its votes are redistributed.</p>
-                            <p><b>Cumulative Voting:</b> Voters receive a block of votes to distribute among options as they see fit, including giving all votes to one option.</p>
-                          </div>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+    <>
+      <LoadingModal isOpen={isLoading} message={loadingMessage} />
+      <Dialog open={isOpen} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Create New Election</DialogTitle>
+            <DialogDescription>
+              Fill in the details below to create a new election. This will deploy a new smart contract.
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="title"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Title</FormLabel>
                     <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a voting method" />
-                      </SelectTrigger>
+                      <Input placeholder="e.g., Community Governance Vote" {...field} />
                     </FormControl>
-                    <SelectContent>
-                      <SelectItem value="Simple Majority">Simple Majority</SelectItem>
-                      <SelectItem value="Quadratic">Quadratic Voting</SelectItem>
-                      <SelectItem value="Ranked-Choice">Ranked-Choice Voting</SelectItem>
-                      <SelectItem value="Cumulative">Cumulative Voting</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <div>
-              <FormLabel>Options</FormLabel>
-              <div className="space-y-2 mt-2">
-                {fields.map((field, index) => (
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Description</FormLabel>
+                    <FormControl>
+                      <Textarea placeholder="Describe the purpose of this election." {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="electionType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center">
+                        Election Type
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Info className="h-4 w-4 ml-2 text-muted-foreground cursor-pointer" />
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" className="max-w-xs p-4">
+                              <div className="space-y-2 text-sm">
+                                <p><b>Simple Majority:</b> Each voter gets one vote.</p>
+                                <p><b>Quadratic Voting:</b> Voters buy votes using credits.</p>
+                                <p><b>Ranked-Choice:</b> Voters rank options by preference.</p>
+                                <p><b>Cumulative Voting:</b> Voters distribute a block of votes.</p>
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a voting method" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="Simple Majority">Simple Majority</SelectItem>
+                          <SelectItem value="Quadratic">Quadratic Voting</SelectItem>
+                          <SelectItem value="Ranked-Choice">Ranked-Choice Voting</SelectItem>
+                          <SelectItem value="Cumulative">Cumulative Voting</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                {(electionType === "Quadratic" || electionType === "Cumulative") && (
                   <FormField
-                    key={field.id}
                     control={form.control}
-                    name={`options.${index}.value`}
+                    name="voteCredits"
                     render={({ field }) => (
                       <FormItem>
-                        <div className="flex items-center gap-2">
-                          <FormControl>
-                            <Input placeholder={`Option ${index + 1}`} {...field} />
-                          </FormControl>
-                          {fields.length > 2 && (
-                            <Button type="button" variant="destructive" size="icon" onClick={() => remove(index)}>
-                              <X className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
+                        <FormLabel>
+                          {electionType === "Quadratic" ? "Vote Credits per User" : "Votes per User"}
+                        </FormLabel>
+                        <FormControl>
+                          <Input type="number" placeholder="e.g., 100" {...field} />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                ))}
+                )}
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="mt-2"
-                onClick={() => append({ value: "" })}
-              >
-                <PlusCircle className="h-4 w-4 mr-2" />
-                Add Option
-              </Button>
-            </div>
-            <FormField
-              control={form.control}
-              name="endDate"
-              render={({ field }) => (
-                <FormItem className="flex flex-col">
-                  <FormLabel>End Date</FormLabel>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <FormControl>
-                        <Button
-                          variant={"outline"}
-                          className={cn(
-                            "w-full pl-3 text-left font-normal",
-                            !field.value && "text-muted-foreground"
-                          )}
-                        >
-                          {field.value ? (
-                            format(field.value, "PPP")
-                          ) : (
-                            <span>Pick a date</span>
-                          )}
-                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                        </Button>
-                      </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={field.value}
-                        onSelect={field.onChange}
-                        disabled={(date) => date < new Date(new Date().setHours(0,0,0,0))}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <DialogFooter>
-              <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-              <Button type="submit">Create Election</Button>
-            </DialogFooter>
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
+              <div>
+                <FormLabel>Options</FormLabel>
+                <div className="space-y-2 mt-2">
+                  {fields.map((field, index) => (
+                    <FormField
+                      key={field.id}
+                      control={form.control}
+                      name={`options.${index}.value`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <div className="flex items-center gap-2">
+                            <FormControl>
+                              <Input placeholder={`Option ${index + 1}`} {...field} />
+                            </FormControl>
+                            {fields.length > 2 && (
+                              <Button type="button" variant="destructive" size="icon" onClick={() => remove(index)}>
+                                <X className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  ))}
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="mt-2"
+                  onClick={() => append({ value: "" })}
+                >
+                  <PlusCircle className="h-4 w-4 mr-2" />
+                  Add Option
+                </Button>
+              </div>
+              <FormField
+                control={form.control}
+                name="endDate"
+                render={({ field }) => (
+                  <FormItem className="flex flex-col">
+                    <FormLabel>End Date</FormLabel>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant={"outline"}
+                            className={cn(
+                              "w-full pl-3 text-left font-normal",
+                              !field.value && "text-muted-foreground"
+                            )}
+                          >
+                            {field.value ? (
+                              format(field.value, "PPP")
+                            ) : (
+                              <span>Pick a date</span>
+                            )}
+                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={field.value}
+                          onSelect={field.onChange}
+                          disabled={(date) => date < new Date(new Date().setHours(0,0,0,0))}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
+                <Button type="submit">Create Election</Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
