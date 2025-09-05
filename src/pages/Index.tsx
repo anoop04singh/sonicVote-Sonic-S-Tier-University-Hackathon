@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/EmptyState";
 import { fetchFromIPFS } from "@/lib/ipfs";
 import { motion } from "framer-motion";
+import { AnimatedCounter } from "@/components/AnimatedCounter";
 
 const ElectionCard = ({ election, index }: { election: any, index: number }) => {
   const getStatusChip = (status: number) => {
@@ -150,9 +151,9 @@ const Index = () => {
 
   return (
     <>
-      <div className="space-y-16">
+      <div className="space-y-8">
         {/* Hero Section */}
-        <div className="text-center py-16 md:py-24">
+        <div className="relative text-center pt-16 pb-32 md:pt-24 md:pb-40">
           <motion.h1 
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -183,48 +184,48 @@ const Index = () => {
               )}
             </div>
           </motion.div>
-        </div>
 
-        {/* Platform Metrics */}
-        {!isLoading && elections.length > 0 && (
-          <motion.div 
-            className="grid gap-6 md:grid-cols-3"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-          >
-            <Card className="bg-card/50 backdrop-blur-sm border-0">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Elections</CardTitle>
-                <Archive className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{totalElections}</div>
+          {/* Platform Metrics */}
+          {!isLoading && elections.length > 0 && (
+            <motion.div 
+              className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full max-w-4xl grid gap-8 md:grid-cols-3"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.8 }}
+            >
+              <div className="flex flex-col items-center">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Archive className="h-4 w-4" />
+                  <span>Total Elections</span>
+                </div>
+                <p className="text-4xl font-bold mt-1">
+                  <AnimatedCounter to={totalElections} />
+                </p>
                 <p className="text-xs text-muted-foreground">All elections created on the platform.</p>
-              </CardContent>
-            </Card>
-            <Card className="bg-card/50 backdrop-blur-sm border-0">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Active Elections</CardTitle>
-                <Activity className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{activeElections}</div>
+              </div>
+              <div className="flex flex-col items-center">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Activity className="h-4 w-4" />
+                  <span>Active Elections</span>
+                </div>
+                <p className="text-4xl font-bold mt-1">
+                  <AnimatedCounter to={activeElections} />
+                </p>
                 <p className="text-xs text-muted-foreground">Currently open for voting.</p>
-              </CardContent>
-            </Card>
-            <Card className="bg-card/50 backdrop-blur-sm border-0">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Votes Cast</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{totalVotes}</div>
+              </div>
+              <div className="flex flex-col items-center">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Users className="h-4 w-4" />
+                  <span>Total Votes Cast</span>
+                </div>
+                <p className="text-4xl font-bold mt-1">
+                  <AnimatedCounter to={totalVotes} />
+                </p>
                 <p className="text-xs text-muted-foreground">Total votes across all elections.</p>
-              </CardContent>
-            </Card>
-          </motion.div>
-        )}
+              </div>
+            </motion.div>
+          )}
+        </div>
 
         {/* Elections List */}
         <div>
