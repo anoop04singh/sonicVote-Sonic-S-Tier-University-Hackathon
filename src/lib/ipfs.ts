@@ -8,24 +8,16 @@ const PINATA_GATEWAY = 'https://gateway.pinata.cloud/ipfs/';
 /**
  * Uploads a JSON object to IPFS via Pinata.
  * @param data The JSON data to upload.
- * @param name An optional name for the file on Pinata.
  * @returns The IPFS hash (CID) of the uploaded content.
  */
-export const uploadToPinata = async (data: object, name?: string): Promise<string> => {
+export const uploadToPinata = async (data: object): Promise<string> => {
   if (!PINATA_API_KEY || !PINATA_SECRET_KEY) {
     throw new Error("Pinata API Key or Secret Key is not set in .env.local");
   }
 
-  const payload = {
-    pinataContent: data,
-    pinataMetadata: {
-      name: name || `SonicVote Election Data - ${new Date().toISOString()}`,
-    },
-  };
-
   const response = await axios.post(
     'https://api.pinata.cloud/pinning/pinJSONToIPFS',
-    payload,
+    data,
     {
       headers: {
         'Content-Type': 'application/json',

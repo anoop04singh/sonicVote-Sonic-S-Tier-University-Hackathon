@@ -76,7 +76,7 @@ export const CreateElectionModal = ({ isOpen, onOpenChange }: CreateElectionModa
         description: values.description,
         options: values.options.map((opt, index) => ({ id: String.fromCharCode(97 + index), text: opt.value })),
       };
-      const ipfsHash = await uploadToPinata(metadata, `Election: ${values.title}`);
+      const ipfsHash = await uploadToPinata(metadata);
       const metadataURI = `ipfs://${ipfsHash}`;
       
       dismissToast(toastId);
@@ -93,7 +93,7 @@ export const CreateElectionModal = ({ isOpen, onOpenChange }: CreateElectionModa
       };
       const electionTypeEnum = electionTypeMap[values.electionType];
       const endDateTimestamp = Math.floor(values.endDate.getTime() / 1000);
-      const optionIds = metadata.options.map(opt => opt.id); // Use the short ID
+      const optionIds = metadata.options.map(opt => opt.text); // Use full text as ID for simplicity in contract
 
       const tx = await factoryContract.createElection(
         endDateTimestamp,

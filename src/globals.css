@@ -48,7 +48,7 @@
     background-image: 
       radial-gradient(
         600px circle at var(--x) var(--y),
-        hsla(18, 93%, 48%, 0.2), /* Primary color with slightly increased opacity */
+        hsla(18, 93%, 48%, 0.15), /* Primary color with low opacity */
         transparent 40%
       ),
       radial-gradient(
