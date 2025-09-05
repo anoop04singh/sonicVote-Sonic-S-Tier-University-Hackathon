@@ -93,7 +93,7 @@ export const CreateElectionModal = ({ isOpen, onOpenChange }: CreateElectionModa
       };
       const electionTypeEnum = electionTypeMap[values.electionType];
       const endDateTimestamp = Math.floor(values.endDate.getTime() / 1000);
-      const optionIds = metadata.options.map(opt => opt.text); // Use full text as ID for simplicity in contract
+      const optionIds = metadata.options.map(opt => opt.id); // Use the short ID
 
       const tx = await factoryContract.createElection(
         endDateTimestamp,
