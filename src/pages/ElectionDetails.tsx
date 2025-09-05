@@ -273,7 +273,9 @@ const ElectionDetails = () => {
   }
 
   if (!election) {
-    return <div>Election not found.</div>;
+    return (
+      <div>Election not found.</div>
+    );
   }
 
   return (
@@ -287,7 +289,7 @@ const ElectionDetails = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="bg-card/50 backdrop-blur-sm border-0"><CardHeader className="flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Status</CardTitle><Info className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className={`text-2xl font-bold ${election.status === 1 ? 'text-green-400' : 'text-gray-400'}`}>{["Upcoming", "Active", "Ended"][election.status]}</div></CardContent></Card>
         <Card className="bg-card/50 backdrop-blur-sm border-0"><CardHeader className="flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Total Voters</CardTitle><Users className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{election.totalVoters.toString()}</div></CardContent></Card>
-        <Card className="bg-card/50 backdrop-blur-sm border-0"><CardHeader className="flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Time Remaining</Title><Clock className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><CountdownTimer endDate={new Date(Number(election.endDate) * 1000).toISOString()} /></CardContent></Card>
+        <Card className="bg-card/50 backdrop-blur-sm border-0"><CardHeader className="flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Time Remaining</CardTitle><Clock className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><CountdownTimer endDate={new Date(Number(election.endDate) * 1000).toISOString()} /></CardContent></Card>
       </div>
 
       <div className="grid md:grid-cols-2 gap-8">
