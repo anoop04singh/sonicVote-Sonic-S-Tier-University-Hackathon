@@ -1,28 +1,81 @@
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useWallet } from "@/context/WalletContext";
 import { Link } from "react-router-dom";
-
-const mockVoteHistory = [
-  {
-    id: 3,
-    title: "DAO Treasury Allocation",
-    yourVote: "Option A: Invest in new protocols",
-    date: "2024-07-25",
-    status: "Ended",
-  },
-  {
-    id: 1,
-    title: "Community Governance Vote",
-    yourVote: "Mobile App Development",
-    date: "2024-08-01",
-    status: "Active",
-  },
-];
+import { ethers } from "ethers";
+import { ELECTION_FACTORY_ADDRESS, ELECTION_FACTORY_ABI, ELECTION_ABI } from "@/contracts";
+import { fetchFromIPFS } from "@/lib/ipfs";
+import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/EmptyState";
 
 const Dashboard = () => {
-  const { address } = useWallet();
+  const { address, provider } = useWallet();
+  const [votingHistory, setVotingHistory] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchVotingHistory = async () => {
+      if (!provider || !address) {
+        setIsLoading(false);
+        return;
+      }
+      setIsLoading(true);
+      try {
+        const factoryContract = new ethers.Contract(ELECTION_FACTORY_ADDRESS, ELECTION_FACTORY_ABI, provider);
+        const electionAddresses = await factoryContract.getDeployedElections();
+
+        const historyPromises = electionAddresses.map(async (electionAddress: string) => {
+          try {
+            const electionContract = new ethers.Contract(electionAddress, ELECTION_ABI, provider);
+            const hasVoted = await electionContract.voters(address);
+
+            if (hasVoted) {
+              const details = await electionContract.getElectionDetails();
+              const onChainData = {
+                address: electionAddress,
+                status: Number(details[1]),
+                electionType: Number(details[2]),
+                endDate: details[3],
+                metadataURI: details[4],
+              };
+              const ipfsHash = onChainData.metadataURI.replace('ipfs://', '');
+              const metadata = await fetchFromIPFS(ipfsHash);
+              return { ...onChainData, ...metadata };
+            }
+            return null;
+          } catch (e) {
+            console.error(`Failed to process election ${electionAddress}:`, e);
+            return null;
+          }
+        });
+
+        const historyData = (await Promise.all(historyPromises)).filter(e => e !== null);
+        setVotingHistory(historyData.reverse());
+      } catch (error) {
+        console.error("Failed to fetch voting history:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchVotingHistory();
+  }, [provider, address]);
+
+  const getStatusBadge = (status: number) => {
+    switch (status) {
+      case 1: return <Badge variant="default">Active</Badge>;
+      case 2: return <Badge variant="secondary">Ended</Badge>;
+      case 0: return <Badge variant="outline">Upcoming</Badge>;
+      default: return <Badge variant="destructive">Unknown</Badge>;
+    }
+  };
+
+  const getElectionTypeLabel = (type: number) => {
+    const types = ["Simple Majority", "Quadratic", "Ranked-Choice", "Cumulative"];
+    return types[type] || "Unknown";
+  };
 
   return (
     <div className="space-y-8">
@@ -39,7 +92,7 @@ const Dashboard = () => {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">Wallet Address</p>
-          <p className="font-mono">{address}</p>
+          <p className="font-mono break-all">{address || "Not connected"}</p>
         </CardContent>
       </Card>
 
@@ -49,34 +102,43 @@ const Dashboard = () => {
           <CardDescription>A record of all elections you've participated in.</CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Election</TableHead>
-                <TableHead>Your Vote</TableHead>
-                <TableHead>Date Voted</TableHead>
-                <TableHead className="text-right">Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {mockVoteHistory.map((vote) => (
-                <TableRow key={vote.id}>
-                  <TableCell className="font-medium">
-                    <Link to={`/election/${vote.id}`} className="hover:underline text-primary">
-                      {vote.title}
-                    </Link>
-                  </TableCell>
-                  <TableCell>{vote.yourVote}</TableCell>
-                  <TableCell>{vote.date}</TableCell>
-                  <TableCell className="text-right">
-                    <Badge variant={vote.status === 'Active' ? 'default' : 'secondary'}>
-                      {vote.status}
-                    </Badge>
-                  </TableCell>
+          {isLoading ? (
+            <div className="space-y-2">
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+            </div>
+          ) : votingHistory.length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Election</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead className="text-right">Status</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {votingHistory.map((vote) => (
+                  <TableRow key={vote.address}>
+                    <TableCell className="font-medium">
+                      <Link to={`/election/${vote.address}`} className="hover:underline text-primary">
+                        {vote.title}
+                      </Link>
+                    </TableCell>
+                    <TableCell>{getElectionTypeLabel(vote.electionType)}</TableCell>
+                    <TableCell className="text-right">
+                      {getStatusBadge(vote.status)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <EmptyState 
+              title="No Voting History"
+              description="You haven't participated in any elections yet. Find an active election to cast your vote!"
+            />
+          )}
         </CardContent>
       </Card>
     </div>
