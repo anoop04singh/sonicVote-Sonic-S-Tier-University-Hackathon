@@ -47,9 +47,9 @@
     /* Layering gradients: The new interactive one goes on top */
     background-image: 
       radial-gradient(
-        500px circle at var(--x) var(--y),
-        hsla(18, 93%, 48%, 0.2), /* Increased opacity */
-        transparent 80% /* Softer falloff */
+        600px circle at var(--x) var(--y),
+        hsla(18, 93%, 48%, 0.25), /* Increased opacity */
+        transparent 70% /* Softer falloff */
       ),
       radial-gradient(
         ellipse 50% 80% at 50% -20%, 
