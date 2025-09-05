@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { PlusCircle, ArrowRight, Users, Clock, Vote } from "lucide-react";
+import { PlusCircle, ArrowRight, Users, Clock, Vote, Activity, Archive } from "lucide-react";
 import { CreateElectionModal } from "@/components/modals/CreateElectionModal";
 import { useWallet } from "@/context/WalletContext";
 import { ethers } from "ethers";
@@ -144,6 +144,10 @@ const Index = () => {
     </div>
   );
 
+  const totalElections = elections.length;
+  const activeElections = elections.filter(e => e.status === 1).length;
+  const totalVotes = elections.reduce((sum, election) => sum + Number(election.totalVoters), 0);
+
   return (
     <>
       <div className="space-y-16">
@@ -180,6 +184,47 @@ const Index = () => {
             </div>
           </motion.div>
         </div>
+
+        {/* Platform Metrics */}
+        {!isLoading && elections.length > 0 && (
+          <motion.div 
+            className="grid gap-6 md:grid-cols-3"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+          >
+            <Card className="bg-card/50 backdrop-blur-sm border-0">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Elections</CardTitle>
+                <Archive className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{totalElections}</div>
+                <p className="text-xs text-muted-foreground">All elections created on the platform.</p>
+              </CardContent>
+            </Card>
+            <Card className="bg-card/50 backdrop-blur-sm border-0">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Active Elections</CardTitle>
+                <Activity className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{activeElections}</div>
+                <p className="text-xs text-muted-foreground">Currently open for voting.</p>
+              </CardContent>
+            </Card>
+            <Card className="bg-card/50 backdrop-blur-sm border-0">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Votes Cast</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{totalVotes}</div>
+                <p className="text-xs text-muted-foreground">Total votes across all elections.</p>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
 
         {/* Elections List */}
         <div>
