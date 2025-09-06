@@ -63,6 +63,14 @@ const Dashboard = () => {
     fetchVotingHistory();
   }, [provider, address]);
 
+  const getEffectiveStatus = (status: number, endDate: number) => {
+    const nowInSeconds = Date.now() / 1000;
+    if (status === 1 && nowInSeconds > endDate) {
+      return 2; // Mark as Ended
+    }
+    return status;
+  };
+
   const getStatusBadge = (status: number) => {
     switch (status) {
       case 1: return <Badge variant="default">Active</Badge>;
@@ -118,19 +126,22 @@ const Dashboard = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {votingHistory.map((vote) => (
-                  <TableRow key={vote.address}>
-                    <TableCell className="font-medium">
-                      <Link to={`/election/${vote.address}`} className="hover:underline text-primary">
-                        {vote.title}
-                      </Link>
-                    </TableCell>
-                    <TableCell>{getElectionTypeLabel(vote.electionType)}</TableCell>
-                    <TableCell className="text-right">
-                      {getStatusBadge(vote.status)}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {votingHistory.map((vote) => {
+                  const effectiveStatus = getEffectiveStatus(vote.status, Number(vote.endDate));
+                  return (
+                    <TableRow key={vote.address}>
+                      <TableCell className="font-medium">
+                        <Link to={`/election/${vote.address}`} className="hover:underline text-primary">
+                          {vote.title}
+                        </Link>
+                      </TableCell>
+                      <TableCell>{getElectionTypeLabel(vote.electionType)}</TableCell>
+                      <TableCell className="text-right">
+                        {getStatusBadge(effectiveStatus)}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           ) : (

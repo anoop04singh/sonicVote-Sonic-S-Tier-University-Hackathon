@@ -15,6 +15,16 @@ import { motion } from "framer-motion";
 import { AnimatedCounter } from "@/components/AnimatedCounter";
 
 const ElectionCard = ({ election, index }: { election: any, index: number }) => {
+  const getEffectiveStatus = (status: number, endDate: number) => {
+    const nowInSeconds = Date.now() / 1000;
+    if (status === 1 && nowInSeconds > endDate) {
+      return 2; // Mark as Ended
+    }
+    return status;
+  };
+
+  const effectiveStatus = getEffectiveStatus(election.status, Number(election.endDate));
+
   const getStatusChip = (status: number) => {
     switch (status) {
       case 1: // Active
@@ -43,8 +53,8 @@ const ElectionCard = ({ election, index }: { election: any, index: number }) => 
         <CardHeader>
           <div className="flex justify-between items-start">
             <CardTitle>{election.title || "Loading..."}</CardTitle>
-            <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${getStatusChip(election.status)}`}>
-              {["Upcoming", "Active", "Ended"][election.status]}
+            <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${getStatusChip(effectiveStatus)}`}>
+              {["Upcoming", "Active", "Ended"][effectiveStatus]}
             </span>
           </div>
           <CardDescription>{election.description || "Fetching details from IPFS."}</CardDescription>
@@ -131,7 +141,26 @@ const Index = () => {
     fetchElections();
   }, [provider]);
 
-  const filteredElections = (status: number) => elections.filter(e => e.status === status);
+  const getEffectiveStatus = (status: number, endDate: number) => {
+    const nowInSeconds = Date.now() / 1000;
+    if (status === 1 && nowInSeconds > endDate) {
+      return 2; // Mark as Ended
+    }
+    return status;
+  };
+
+  const filteredElections = (targetStatus: number) => {
+    if (targetStatus === 1) { // Active
+      return elections.filter(e => getEffectiveStatus(e.status, Number(e.endDate)) === 1);
+    }
+    if (targetStatus === 2) { // Ended
+      return elections.filter(e => getEffectiveStatus(e.status, Number(e.endDate)) === 2);
+    }
+    if (targetStatus === 0) { // Upcoming
+      return elections.filter(e => getEffectiveStatus(e.status, Number(e.endDate)) === 0);
+    }
+    return [];
+  };
 
   const renderSkeletons = () => (
     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -146,7 +175,7 @@ const Index = () => {
   );
 
   const totalElections = elections.length;
-  const activeElections = elections.filter(e => e.status === 1).length;
+  const activeElections = elections.filter(e => getEffectiveStatus(e.status, Number(e.endDate)) === 1).length;
   const totalVotes = elections.reduce((sum, election) => sum + Number(election.totalVoters), 0);
 
   return (
