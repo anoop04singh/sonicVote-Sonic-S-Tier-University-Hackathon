@@ -25,6 +25,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { CalendarIcon, PlusCircle, X, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -43,9 +44,28 @@ const formSchema = z.object({
   startDate: z.date({ required_error: "A start date is required." }),
   endDate: z.date({ required_error: "An end date is required." }),
   voteCredits: z.coerce.number().optional(),
+  voterAccess: z.enum(["open", "restricted"], { required_error: "Please select voter access." }),
+  voterList: z.string().optional(),
 }).refine((data) => data.endDate > data.startDate, {
   message: "End date must be after start date.",
   path: ["endDate"],
+}).refine((data) => {
+  if (data.voterAccess === "restricted") {
+    return data.voterList && data.voterList.trim().length > 0;
+  }
+  return true;
+}, {
+  message: "Voter list cannot be empty for restricted access.",
+  path: ["voterList"],
+}).refine((data) => {
+  if (data.voterAccess === "restricted" && data.voterList) {
+    const addresses = data.voterList.split(',').map(a => a.trim()).filter(a => a);
+    return addresses.every(a => ethers.isAddress(a));
+  }
+  return true;
+}, {
+  message: "Voter list contains one or more invalid wallet addresses.",
+  path: ["voterList"],
 });
 
 interface CreateElectionModalProps {
@@ -67,6 +87,8 @@ export const CreateElectionModal = ({ isOpen, onOpenChange }: CreateElectionModa
       startDate: undefined,
       endDate: undefined,
       voteCredits: 100,
+      voterAccess: "open",
+      voterList: "",
     },
   });
 
@@ -76,6 +98,7 @@ export const CreateElectionModal = ({ isOpen, onOpenChange }: CreateElectionModa
   });
 
   const electionType = form.watch("electionType");
+  const voterAccess = form.watch("voterAccess");
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!signer) {
@@ -96,6 +119,13 @@ export const CreateElectionModal = ({ isOpen, onOpenChange }: CreateElectionModa
       if (values.electionType === "Quadratic" || values.electionType === "Cumulative") {
         metadata.voteCredits = values.voteCredits;
       }
+      if (values.voterAccess === "restricted") {
+        metadata.isRestricted = true;
+        metadata.voterList = values.voterList!.split(',').map(a => a.trim()).filter(a => a);
+      } else {
+        metadata.isRestricted = false;
+      }
+
       const ipfsHash = await uploadToPinata(metadata);
       const metadataURI = `ipfs://${ipfsHash}`;
       
@@ -148,7 +178,7 @@ export const CreateElectionModal = ({ isOpen, onOpenChange }: CreateElectionModa
             </DialogDescription>
           </DialogHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[80vh] overflow-y-auto pr-4">
               <FormField
                 control={form.control}
                 name="title"
@@ -271,6 +301,59 @@ export const CreateElectionModal = ({ isOpen, onOpenChange }: CreateElectionModa
                   Add Option
                 </Button>
               </div>
+              <FormField
+                control={form.control}
+                name="voterAccess"
+                render={({ field }) => (
+                  <FormItem className="space-y-3">
+                    <FormLabel>Voter Access</FormLabel>
+                    <FormControl>
+                      <RadioGroup
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                        className="flex flex-col space-y-1"
+                      >
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="open" />
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            Open to all
+                          </FormLabel>
+                        </FormItem>
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="restricted" />
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            Restricted to a voter list
+                          </FormLabel>
+                        </FormItem>
+                      </RadioGroup>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              {voterAccess === 'restricted' && (
+                <FormField
+                  control={form.control}
+                  name="voterList"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Voter List</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Enter wallet addresses, separated by commas. e.g., 0x123..., 0x456..."
+                          className="min-h-[100px]"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
@@ -351,7 +434,7 @@ export const CreateElectionModal = ({ isOpen, onOpenChange }: CreateElectionModa
                   )}
                 />
               </div>
-              <DialogFooter>
+              <DialogFooter className="pt-4">
                 <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
                 <Button type="submit">Create Election</Button>
               </DialogFooter>

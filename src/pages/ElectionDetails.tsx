@@ -4,15 +4,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { ArrowLeft, Vote, Users, Clock, Info } from "lucide-react";
+import { ArrowLeft, Vote, Users, Clock, Info, ShieldCheck, ShieldAlert } from "lucide-react";
 import { showSuccess, showError } from "@/utils/toast";
 import { useWallet } from "@/context/WalletContext";
 import CountdownTimer from "@/components/CountdownTimer";
 import { ethers } from "ethers";
 import { ELECTION_ABI } from "@/contracts";
 import { Skeleton } from "@/components/ui/skeleton";
-import { fetchFromIPFS } from "@/lib/ipfs";
+import { fetchFromIPFS, uploadToPinata } from "@/lib/ipfs";
 import { LoadingModal } from "@/components/modals/LoadingModal";
 
 const COLORS = ["#FF8042", "#0088FE", "#00C49F", "#FFBB28"];
@@ -141,22 +142,23 @@ const SimpleVotingCard = ({ options, onVote, disabled }: any) => (
   };
 
 const ElectionDetails = () => {
-  const { address } = useParams();
-  const { isConnected, signer, provider } = useWallet();
+  const { address: electionAddress } = useParams();
+  const { isConnected, signer, provider, address: userAddress } = useWallet();
   const [election, setElection] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isVoting, setIsVoting] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState("");
 
   useEffect(() => {
     const fetchElectionDetails = async () => {
-      if (!provider || !address) return;
+      if (!provider || !electionAddress) return;
       setIsLoading(true);
       try {
-        const electionContract = new ethers.Contract(address, ELECTION_ABI, provider);
+        const electionContract = new ethers.Contract(electionAddress, ELECTION_ABI, provider);
         const details = await electionContract.getElectionDetails();
         
         const onChainData = {
-          address,
+          address: electionAddress,
           creator: details[0],
           status: Number(details[1]),
           electionType: Number(details[2]),
@@ -189,34 +191,46 @@ const ElectionDetails = () => {
     };
 
     fetchElectionDetails();
-  }, [provider, address]);
+  }, [provider, electionAddress]);
 
   const handleVote = async (voteData: any) => {
-    if (!isConnected || !signer || !address) {
+    if (!isConnected || !signer || !electionAddress) {
       showError("Please connect your wallet to vote.");
       return;
     }
     setIsVoting(true);
     try {
-      const electionContract = new ethers.Contract(address, ELECTION_ABI, signer);
+      let voteJSON: object;
       let tx;
-      const voteURI = "ipfs://placeholder_vote_data"; // Simulated IPFS URI for vote receipt
+
+      setLoadingMessage("Uploading vote data to IPFS...");
+      
+      const electionContract = new ethers.Contract(electionAddress, ELECTION_ABI, signer);
 
       switch (election.electionType) {
         case 0: // Simple Majority
-          tx = await electionContract.castVoteSimple(voteData, voteURI);
+          voteJSON = { electionId: electionAddress, selectedOption: voteData };
+          const simpleVoteIpfsHash = await uploadToPinata(voteJSON);
+          setLoadingMessage("Submitting your vote on-chain...");
+          tx = await electionContract.castVoteSimple(voteData, `ipfs://${simpleVoteIpfsHash}`);
           break;
         case 1: // Quadratic
         case 3: // Cumulative
+          voteJSON = { electionId: electionAddress, votes: voteData };
+          const distVoteIpfsHash = await uploadToPinata(voteJSON);
+          setLoadingMessage("Submitting your vote on-chain...");
           const optionIds = Object.keys(voteData);
           const votes = optionIds.map(id => voteData[id]);
-          tx = await electionContract.castVoteDistribution(optionIds, votes, voteURI);
+          tx = await electionContract.castVoteDistribution(optionIds, votes, `ipfs://${distVoteIpfsHash}`);
           break;
         case 2: // Ranked-Choice
           const rankedOptions = Object.entries(voteData)
             .sort(([, rankA], [, rankB]) => (rankA as number) - (rankB as number))
             .map(([optionText]) => optionText);
-          tx = await electionContract.castVoteRankedChoice(rankedOptions, voteURI);
+          voteJSON = { electionId: electionAddress, ranks: rankedOptions };
+          const rankedVoteIpfsHash = await uploadToPinata(voteJSON);
+          setLoadingMessage("Submitting your vote on-chain...");
+          tx = await electionContract.castVoteRankedChoice(rankedOptions, `ipfs://${rankedVoteIpfsHash}`);
           break;
         default:
           throw new Error("Unknown election type");
@@ -244,24 +258,44 @@ const ElectionDetails = () => {
   };
 
   const renderVotingCard = () => {
-    if (!election) return null;
+    if (!election || !userAddress) return null;
+    
     const effectiveStatus = getEffectiveStatus(election.status, Number(election.startDate), Number(election.endDate));
-    const canVote = effectiveStatus === 1;
+    const isWhitelisted = election.isRestricted 
+      ? election.voterList.map((a: string) => a.toLowerCase()).includes(userAddress.toLowerCase())
+      : true;
+    
+    const canVote = effectiveStatus === 1 && isWhitelisted;
     const electionTypes = ["Simple Majority", "Quadratic", "Ranked-Choice", "Cumulative"];
     const type = electionTypes[election.electionType];
 
-    switch (type) {
-      case 'Simple Majority':
-        return <SimpleVotingCard options={election.options} onVote={handleVote} disabled={!canVote} />;
-      case 'Quadratic':
-        return <QuadraticVotingCard options={election.options} onVote={handleVote} disabled={!canVote} voteCredits={election.voteCredits} />;
-      case 'Ranked-Choice':
-        return <RankedChoiceVotingCard options={election.options} onVote={handleVote} disabled={!canVote} />;
-      case 'Cumulative':
-        return <CumulativeVotingCard options={election.options} onVote={handleVote} disabled={!canVote} voteCredits={election.voteCredits} />;
-      default:
-        return null;
-    }
+    return (
+      <div>
+        {election.isRestricted && !isWhitelisted && effectiveStatus === 1 && (
+          <Alert variant="destructive" className="mb-4">
+            <ShieldAlert className="h-4 w-4" />
+            <AlertTitle>Not Eligible to Vote</AlertTitle>
+            <AlertDescription>
+              This is a restricted election and your connected wallet is not on the voter list.
+            </AlertDescription>
+          </Alert>
+        )}
+        {(() => {
+          switch (type) {
+            case 'Simple Majority':
+              return <SimpleVotingCard options={election.options} onVote={handleVote} disabled={!canVote} />;
+            case 'Quadratic':
+              return <QuadraticVotingCard options={election.options} onVote={handleVote} disabled={!canVote} voteCredits={election.voteCredits} />;
+            case 'Ranked-Choice':
+              return <RankedChoiceVotingCard options={election.options} onVote={handleVote} disabled={!canVote} />;
+            case 'Cumulative':
+              return <CumulativeVotingCard options={election.options} onVote={handleVote} disabled={!canVote} voteCredits={election.voteCredits} />;
+            default:
+              return null;
+          }
+        })()}
+      </div>
+    );
   };
 
   if (isLoading) {
@@ -269,7 +303,8 @@ const ElectionDetails = () => {
         <div className="space-y-8">
             <Skeleton className="h-10 w-1/4" />
             <Skeleton className="h-8 w-3/4" />
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <Skeleton className="h-24 w-full" />
                 <Skeleton className="h-24 w-full" />
                 <Skeleton className="h-24 w-full" />
                 <Skeleton className="h-24 w-full" />
@@ -290,7 +325,7 @@ const ElectionDetails = () => {
 
   return (
     <>
-      <LoadingModal isOpen={isVoting} message="Submitting your vote on-chain..." />
+      <LoadingModal isOpen={isVoting} message={loadingMessage} />
       <div className="space-y-8">
         <div>
           <Button asChild variant="ghost" className="mb-4"><Link to="/"><ArrowLeft className="mr-2 h-4 w-4" /> Back to Elections</Link></Button>
@@ -298,9 +333,10 @@ const ElectionDetails = () => {
           <p className="mt-2 text-muted-foreground">{election.description}</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card className="bg-card/50 backdrop-blur-sm border-0"><CardHeader className="flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Status</CardTitle><Info className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className={`text-2xl font-bold ${effectiveStatus === 1 ? 'text-green-400' : effectiveStatus === 0 ? 'text-blue-400' : 'text-gray-400'}`}>{["Upcoming", "Active", "Ended"][effectiveStatus]}</div></CardContent></Card>
           <Card className="bg-card/50 backdrop-blur-sm border-0"><CardHeader className="flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Total Voters</CardTitle><Users className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{election.totalVoters.toString()}</div></CardContent></Card>
+          <Card className="bg-card/50 backdrop-blur-sm border-0"><CardHeader className="flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Eligibility</CardTitle>{election.isRestricted ? <ShieldAlert className="h-4 w-4 text-muted-foreground" /> : <ShieldCheck className="h-4 w-4 text-muted-foreground" />}</CardHeader><CardContent><div className="text-2xl font-bold">{election.isRestricted ? "Restricted" : "Open to All"}</div></CardContent></Card>
           <Card className="bg-card/50 backdrop-blur-sm border-0"><CardHeader className="flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">{effectiveStatus === 0 ? "Time Until Start" : "Time Remaining"}</CardTitle><Clock className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><CountdownTimer endDate={new Date(Number(effectiveStatus === 0 ? election.startDate : election.endDate) * 1000).toISOString()} /></CardContent></Card>
         </div>
 
