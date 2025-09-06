@@ -163,7 +163,6 @@ const ElectionDetails = () => {
           endDate: details[3],
           metadataURI: details[4],
           totalVoters: details[5],
-          startDate: details[6],
         };
 
         const ipfsHash = onChainData.metadataURI.replace('ipfs://', '');
@@ -232,21 +231,30 @@ const ElectionDetails = () => {
     }
   };
 
+  const getEffectiveStatus = (status: number, endDate: number) => {
+    const nowInSeconds = Date.now() / 1000;
+    if (status === 1 && nowInSeconds > endDate) {
+      return 2; // Mark as Ended
+    }
+    return status;
+  };
+
   const renderVotingCard = () => {
     if (!election) return null;
-    const isNotActive = election.status !== 1;
+    const effectiveStatus = getEffectiveStatus(election.status, Number(election.endDate));
+    const isEnded = effectiveStatus === 2;
     const electionTypes = ["Simple Majority", "Quadratic", "Ranked-Choice", "Cumulative"];
     const type = electionTypes[election.electionType];
 
     switch (type) {
       case 'Simple Majority':
-        return <SimpleVotingCard options={election.options} onVote={handleVote} disabled={isNotActive} />;
+        return <SimpleVotingCard options={election.options} onVote={handleVote} disabled={isEnded} />;
       case 'Quadratic':
-        return <QuadraticVotingCard options={election.options} onVote={handleVote} disabled={isNotActive} voteCredits={election.voteCredits} />;
+        return <QuadraticVotingCard options={election.options} onVote={handleVote} disabled={isEnded} voteCredits={election.voteCredits} />;
       case 'Ranked-Choice':
-        return <RankedChoiceVotingCard options={election.options} onVote={handleVote} disabled={isNotActive} />;
+        return <RankedChoiceVotingCard options={election.options} onVote={handleVote} disabled={isEnded} />;
       case 'Cumulative':
-        return <CumulativeVotingCard options={election.options} onVote={handleVote} disabled={isNotActive} voteCredits={election.voteCredits} />;
+        return <CumulativeVotingCard options={election.options} onVote={handleVote} disabled={isEnded} voteCredits={election.voteCredits} />;
       default:
         return null;
     }
@@ -274,6 +282,8 @@ const ElectionDetails = () => {
     return <div>Election not found.</div>;
   }
 
+  const effectiveStatus = getEffectiveStatus(election.status, Number(election.endDate));
+
   return (
     <>
       <LoadingModal isOpen={isVoting} message="Submitting your vote on-chain..." />
@@ -285,7 +295,7 @@ const ElectionDetails = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="bg-card/50 backdrop-blur-sm border-0"><CardHeader className="flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Status</CardTitle><Info className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className={`text-2xl font-bold ${election.status === 1 ? 'text-green-400' : 'text-gray-400'}`}>{["Upcoming", "Active", "Ended"][election.status]}</div></CardContent></Card>
+          <Card className="bg-card/50 backdrop-blur-sm border-0"><CardHeader className="flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Status</CardTitle><Info className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className={`text-2xl font-bold ${effectiveStatus === 1 ? 'text-green-400' : 'text-gray-400'}`}>{["Upcoming", "Active", "Ended"][effectiveStatus]}</div></CardContent></Card>
           <Card className="bg-card/50 backdrop-blur-sm border-0"><CardHeader className="flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Total Voters</CardTitle><Users className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{election.totalVoters.toString()}</div></CardContent></Card>
           <Card className="bg-card/50 backdrop-blur-sm border-0"><CardHeader className="flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Time Remaining</CardTitle><Clock className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><CountdownTimer endDate={new Date(Number(election.endDate) * 1000).toISOString()} /></CardContent></Card>
         </div>

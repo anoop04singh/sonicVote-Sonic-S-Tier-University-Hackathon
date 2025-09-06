@@ -8,11 +8,6 @@
 			},
 			{
 				"internalType": "uint256",
-				"name": "_startDate",
-				"type": "uint256"
-			},
-			{
-				"internalType": "uint256",
 				"name": "_endDate",
 				"type": "uint256"
 			},
@@ -36,6 +31,38 @@
 		"type": "constructor"
 	},
 	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "timestamp",
+				"type": "uint256"
+			}
+		],
+		"name": "ElectionEnded",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "voter",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "enum Election.ElectionType",
+				"name": "voteType",
+				"type": "uint8"
+			}
+		],
+		"name": "VoteCasted",
+		"type": "event"
+	},
+	{
 		"inputs": [
 			{
 				"internalType": "string[]",
@@ -43,13 +70,13 @@
 				"type": "string[]"
 			},
 			{
-				"internalType": "uint256[]",
+				"internalType": "uint64[]",
 				"name": "_votes",
-				"type": "uint256[]"
+				"type": "uint64[]"
 			},
 			{
 				"internalType": "string",
-				"name": "_voteURI",
+				"name": "_voteDataURI",
 				"type": "string"
 			}
 		],
@@ -67,7 +94,7 @@
 			},
 			{
 				"internalType": "string",
-				"name": "_voteURI",
+				"name": "_voteDataURI",
 				"type": "string"
 			}
 		],
@@ -85,11 +112,18 @@
 			},
 			{
 				"internalType": "string",
-				"name": "_voteURI",
+				"name": "_voteDataURI",
 				"type": "string"
 			}
 		],
 		"name": "castVoteSimple",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "closeElection",
 		"outputs": [],
 		"stateMutability": "nonpayable",
 		"type": "function"
@@ -166,24 +200,6 @@
 				"internalType": "uint256",
 				"name": "",
 				"type": "uint256"
-			},
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "getStatus",
-		"outputs": [
-			{
-				"internalType": "enum Election.Status",
-				"name": "",
-				"type": "uint8"
 			}
 		],
 		"stateMutability": "view",
@@ -213,9 +229,9 @@
 		"name": "results",
 		"outputs": [
 			{
-				"internalType": "uint256",
+				"internalType": "uint64",
 				"name": "",
-				"type": "uint256"
+				"type": "uint64"
 			}
 		],
 		"stateMutability": "view",
@@ -223,12 +239,12 @@
 	},
 	{
 		"inputs": [],
-		"name": "startDate",
+		"name": "status",
 		"outputs": [
 			{
-				"internalType": "uint256",
+				"internalType": "enum Election.Status",
 				"name": "",
-				"type": "uint256"
+				"type": "uint8"
 			}
 		],
 		"stateMutability": "view",
