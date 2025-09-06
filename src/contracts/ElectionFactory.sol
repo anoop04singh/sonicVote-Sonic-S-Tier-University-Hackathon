@@ -5,6 +5,7 @@ import "./Election.sol";
 
 /**
  * @title ElectionFactory
+ * @author 0xanoop
  * @dev A factory contract for creating and tracking new Election contracts.
  * This allows for a decentralized way to deploy and discover elections.
  */
