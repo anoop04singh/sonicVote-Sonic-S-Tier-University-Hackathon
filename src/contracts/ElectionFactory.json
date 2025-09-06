@@ -3,6 +3,11 @@
 		"inputs": [
 			{
 				"internalType": "uint256",
+				"name": "_startDate",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
 				"name": "_endDate",
 				"type": "uint256"
 			},
@@ -41,18 +46,6 @@
 				"internalType": "address",
 				"name": "creator",
 				"type": "address"
-			},
-			{
-				"indexed": false,
-				"internalType": "uint256",
-				"name": "endDate",
-				"type": "uint256"
-			},
-			{
-				"indexed": false,
-				"internalType": "enum Election.ElectionType",
-				"name": "electionType",
-				"type": "uint8"
 			}
 		],
 		"name": "ElectionCreated",
