@@ -39,6 +39,7 @@ const Dashboard = () => {
                 electionType: Number(details[2]),
                 endDate: details[3],
                 metadataURI: details[4],
+                startDate: details[6],
               };
               const ipfsHash = onChainData.metadataURI.replace('ipfs://', '');
               const metadata = await fetchFromIPFS(ipfsHash);
@@ -63,10 +64,13 @@ const Dashboard = () => {
     fetchVotingHistory();
   }, [provider, address]);
 
-  const getEffectiveStatus = (status: number, endDate: number) => {
+  const getEffectiveStatus = (status: number, startDate: number, endDate: number) => {
     const nowInSeconds = Date.now() / 1000;
-    if (status === 1 && nowInSeconds > endDate) {
-      return 2; // Mark as Ended
+    if (status !== 2 && nowInSeconds >= endDate) {
+      return 2; // Ended
+    }
+    if (status === 0 && nowInSeconds >= startDate) {
+      return 1; // Active
     }
     return status;
   };
@@ -127,7 +131,7 @@ const Dashboard = () => {
               </TableHeader>
               <TableBody>
                 {votingHistory.map((vote) => {
-                  const effectiveStatus = getEffectiveStatus(vote.status, Number(vote.endDate));
+                  const effectiveStatus = getEffectiveStatus(vote.status, Number(vote.startDate), Number(vote.endDate));
                   return (
                     <TableRow key={vote.address}>
                       <TableCell className="font-medium">

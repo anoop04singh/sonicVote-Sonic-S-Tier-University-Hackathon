@@ -15,15 +15,18 @@ import { motion } from "framer-motion";
 import { AnimatedCounter } from "@/components/AnimatedCounter";
 
 const ElectionCard = ({ election, index }: { election: any, index: number }) => {
-  const getEffectiveStatus = (status: number, endDate: number) => {
+  const getEffectiveStatus = (status: number, startDate: number, endDate: number) => {
     const nowInSeconds = Date.now() / 1000;
-    if (status === 1 && nowInSeconds > endDate) {
-      return 2; // Mark as Ended
+    if (status !== 2 && nowInSeconds >= endDate) {
+      return 2; // Ended
+    }
+    if (status === 0 && nowInSeconds >= startDate) {
+      return 1; // Active
     }
     return status;
   };
 
-  const effectiveStatus = getEffectiveStatus(election.status, Number(election.endDate));
+  const effectiveStatus = getEffectiveStatus(election.status, Number(election.startDate), Number(election.endDate));
 
   const getStatusChip = (status: number) => {
     switch (status) {
@@ -72,7 +75,9 @@ const ElectionCard = ({ election, index }: { election: any, index: number }) => 
           </div>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Clock className="h-4 w-4" />
-            <span>Ends: {new Date(Number(election.endDate) * 1000).toLocaleDateString()}</span>
+            <span>
+              {effectiveStatus === 0 ? 'Starts' : 'Ends'}: {new Date(Number(effectiveStatus === 0 ? election.startDate : election.endDate) * 1000).toLocaleDateString()}
+            </span>
           </div>
         </CardContent>
         <CardFooter>
@@ -117,6 +122,7 @@ const Index = () => {
               endDate: details[3],
               metadataURI: details[4],
               totalVoters: details[5],
+              startDate: details[6],
             };
 
             const ipfsHash = onChainData.metadataURI.replace('ipfs://', '');
@@ -141,25 +147,19 @@ const Index = () => {
     fetchElections();
   }, [provider]);
 
-  const getEffectiveStatus = (status: number, endDate: number) => {
+  const getEffectiveStatus = (status: number, startDate: number, endDate: number) => {
     const nowInSeconds = Date.now() / 1000;
-    if (status === 1 && nowInSeconds > endDate) {
-      return 2; // Mark as Ended
+    if (status !== 2 && nowInSeconds >= endDate) {
+      return 2; // Ended
+    }
+    if (status === 0 && nowInSeconds >= startDate) {
+      return 1; // Active
     }
     return status;
   };
 
   const filteredElections = (targetStatus: number) => {
-    if (targetStatus === 1) { // Active
-      return elections.filter(e => getEffectiveStatus(e.status, Number(e.endDate)) === 1);
-    }
-    if (targetStatus === 2) { // Ended
-      return elections.filter(e => getEffectiveStatus(e.status, Number(e.endDate)) === 2);
-    }
-    if (targetStatus === 0) { // Upcoming
-      return elections.filter(e => getEffectiveStatus(e.status, Number(e.endDate)) === 0);
-    }
-    return [];
+    return elections.filter(e => getEffectiveStatus(e.status, Number(e.startDate), Number(e.endDate)) === targetStatus);
   };
 
   const renderSkeletons = () => (
@@ -175,7 +175,7 @@ const Index = () => {
   );
 
   const totalElections = elections.length;
-  const activeElections = elections.filter(e => getEffectiveStatus(e.status, Number(e.endDate)) === 1).length;
+  const activeElections = elections.filter(e => getEffectiveStatus(e.status, Number(e.startDate), Number(e.endDate)) === 1).length;
   const totalVotes = elections.reduce((sum, election) => sum + Number(election.totalVoters), 0);
 
   return (
