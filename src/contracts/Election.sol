@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 /**
  * @title Election
+ * @author 0xanoop
  * @dev A contract to manage a single decentralized election.
  * It handles the election's lifecycle, vote casting, and result tallying.
  */
