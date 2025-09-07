@@ -6,6 +6,6 @@ export const sonicNetwork = {
     symbol: 'S',
     decimals: 18,
   },
-  rpcUrls: ['https://rpc.mainnet.sonic.network/'],
+  rpcUrls: ['https://rpc.soniclabs.com'],
   blockExplorerUrls: ['https://explorer.sonic.game/'],
 };
