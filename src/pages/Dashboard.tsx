@@ -34,7 +34,7 @@ const Dashboard = () => {
             const electionContract = new ethers.Contract(electionAddress, ELECTION_ABI, provider);
             
             // Fetch all vote events and filter client-side for robustness
-            const allVoteEvents = await electionContract.queryFilter("VoteCasted");
+            const allVoteEvents = await electionContract.queryFilter("VoteCast");
             const userVoteEvent = allVoteEvents.find(
               (event) => event.args[0].toLowerCase() === address.toLowerCase()
             );
