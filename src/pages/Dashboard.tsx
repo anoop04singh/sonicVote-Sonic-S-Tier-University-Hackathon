@@ -33,16 +33,19 @@ const Dashboard = () => {
           try {
             const electionContract = new ethers.Contract(electionAddress, ELECTION_ABI, provider);
             
-            const allVoteEvents = await electionContract.queryFilter("VoteCast");
+            // Use a wildcard to fetch all events, making this robust against ABI/name mismatches.
+            const allEvents = await electionContract.queryFilter("*");
             
-            // After reviewing the contract ABI, the voter address is the second argument (index 1).
-            const userVoteEvent = allVoteEvents.find(
-              (event) => event.args && event.args[1] && event.args[1].toLowerCase() === address.toLowerCase()
+            // Find the vote event by looking for the user's address in the event arguments.
+            const userVoteEvent = allEvents.find(event => 
+              event.args && event.args.some(arg => typeof arg === 'string' && arg.toLowerCase() === address.toLowerCase())
             );
 
             if (userVoteEvent) {
-              // The IPFS URI is the third argument (index 2).
-              const ipfsURI = userVoteEvent.args![2];
+              // Find the IPFS URI in the arguments, which is more reliable than using a fixed index.
+              const ipfsURI = userVoteEvent.args.find(arg => typeof arg === 'string' && arg.startsWith('ipfs://'));
+
+              if (!ipfsURI) return null;
 
               const details = await electionContract.getElectionDetails();
               const onChainData = {
