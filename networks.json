@@ -1,0 +1,12 @@
+{
+  "sonic-testnet": {
+    "chainId": 14601,
+    "startBlock": 1,
+    "contracts": {
+      "ElectionFactory": {
+        "address": "0x9698dea8d185387544396ae17c1a06d89244fdd2",
+        "abi": "src/contracts/ElectionFactory.json"
+      }
+    }
+  }
+}
