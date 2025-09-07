@@ -1,0 +1,18 @@
+type Election @entity {
+  id: ID! # The contract address
+  creator: Bytes!
+  startDate: BigInt!
+  endDate: BigInt!
+  electionType: String!
+  metadataURI: String!
+  # This creates a reverse lookup to see all votes for an election
+  votes: [Vote!]! @derivedFrom(field: "election")
+}
+
+type Vote @entity {
+  id: ID! # A unique ID, e.g., transaction hash + log index
+  election: Election! # Link to the Election this vote belongs to
+  voter: Bytes! # The address of the voter
+  ipfsURI: String! # The IPFS URI of the detailed vote data
+  timestamp: BigInt!
+}
