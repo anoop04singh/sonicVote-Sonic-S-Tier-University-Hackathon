@@ -6,92 +6,75 @@ import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useWallet } from "@/context/WalletContext";
 import { Link } from "react-router-dom";
-import { ethers } from "ethers";
-import { ELECTION_FACTORY_ADDRESS, ELECTION_FACTORY_ABI, ELECTION_ABI } from "@/contracts";
 import { fetchFromIPFS } from "@/lib/ipfs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/EmptyState";
 import { ChevronDown, ExternalLink } from "lucide-react";
+import { useQuery, gql } from "@apollo/client";
+
+const GET_VOTING_HISTORY = gql`
+  query GetVotingHistory($voterAddress: Bytes!) {
+    votes(where: { voter: $voterAddress }, orderBy: timestamp, orderDirection: desc) {
+      id
+      ipfsURI
+      timestamp
+      election {
+        id
+        metadataURI
+        startDate
+        endDate
+        electionType
+      }
+    }
+  }
+`;
 
 const Dashboard = () => {
-  const { address, provider } = useWallet();
+  const { address } = useWallet();
   const [votingHistory, setVotingHistory] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { loading: isLoading, data: subgraphData } = useQuery(GET_VOTING_HISTORY, {
+    variables: { voterAddress: address?.toLowerCase() },
+    skip: !address,
+  });
 
   useEffect(() => {
-    const fetchVotingHistory = async () => {
-      if (!provider || !address) {
-        setIsLoading(false);
-        return;
-      }
-      setIsLoading(true);
-      try {
-        const factoryContract = new ethers.Contract(ELECTION_FACTORY_ADDRESS, ELECTION_FACTORY_ABI, provider);
-        const electionAddresses = await factoryContract.getDeployedElections();
+    if (subgraphData?.votes) {
+      const fetchMetadata = async () => {
+        const historyWithMetadata = await Promise.all(
+          subgraphData.votes.map(async (vote: any) => {
+            try {
+              const electionIpfsHash = vote.election.metadataURI.replace('ipfs://', '');
+              const electionMetadata = await fetchFromIPFS(electionIpfsHash);
 
-        const historyPromises = electionAddresses.map(async (electionAddress: string) => {
-          try {
-            const electionContract = new ethers.Contract(electionAddress, ELECTION_ABI, provider);
-            
-            // Use a wildcard to fetch all events, making this robust against ABI/name mismatches.
-            const allEvents = await electionContract.queryFilter("*");
-            
-            // Find the vote event by looking for the user's address in the event arguments.
-            const userVoteEvent = allEvents.find(event => 
-              event.args && event.args.some(arg => typeof arg === 'string' && arg.toLowerCase() === address.toLowerCase())
-            );
-
-            if (userVoteEvent) {
-              // Find the IPFS URI in the arguments, which is more reliable than using a fixed index.
-              const ipfsURI = userVoteEvent.args.find(arg => typeof arg === 'string' && arg.startsWith('ipfs://'));
-
-              if (!ipfsURI) return null;
-
-              const details = await electionContract.getElectionDetails();
-              const onChainData = {
-                address: electionAddress,
-                status: Number(details[1]),
-                electionType: Number(details[2]),
-                endDate: details[3],
-                metadataURI: details[4],
-                startDate: details[6],
-              };
-              const ipfsHash = onChainData.metadataURI.replace('ipfs://', '');
-              const metadata = await fetchFromIPFS(ipfsHash);
-              
-              const voteIpfsHash = ipfsURI.replace('ipfs://', '');
+              const voteIpfsHash = vote.ipfsURI.replace('ipfs://', '');
               const voteData = await fetchFromIPFS(voteIpfsHash);
 
-              return { ...onChainData, ...metadata, ipfsURI, voteData };
+              return {
+                ...vote,
+                address: vote.election.id,
+                title: electionMetadata.title,
+                electionType: vote.election.electionType,
+                startDate: vote.election.startDate,
+                endDate: vote.election.endDate,
+                voteData,
+              };
+            } catch (e) {
+              console.error(`Failed to load metadata for vote ${vote.id}:`, e);
+              return { ...vote, title: "Error loading details" };
             }
-            return null;
-          } catch (e) {
-            console.error(`Failed to process election ${electionAddress}:`, e);
-            return null;
-          }
-        });
+          })
+        );
+        setVotingHistory(historyWithMetadata);
+      };
+      fetchMetadata();
+    }
+  }, [subgraphData]);
 
-        const historyData = (await Promise.all(historyPromises)).filter(e => e !== null);
-        setVotingHistory(historyData.reverse());
-      } catch (error) {
-        console.error("Failed to fetch voting history:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchVotingHistory();
-  }, [provider, address]);
-
-  const getEffectiveStatus = (status: number, startDate: number, endDate: number) => {
+  const getEffectiveStatus = (startDate: number, endDate: number) => {
     const nowInSeconds = Date.now() / 1000;
-    if (status !== 2 && nowInSeconds >= endDate) {
-      return 2; // Ended
-    }
-    if (status === 0 && nowInSeconds >= startDate) {
-      return 1; // Active
-    }
-    return status;
+    if (nowInSeconds >= endDate) return 2; // Ended
+    if (nowInSeconds < startDate) return 0; // Upcoming
+    return 1; // Active
   };
 
   const getStatusBadge = (status: number) => {
@@ -101,11 +84,6 @@ const Dashboard = () => {
       case 0: return <Badge variant="outline">Upcoming</Badge>;
       default: return <Badge variant="destructive">Unknown</Badge>;
     }
-  };
-
-  const getElectionTypeLabel = (type: number) => {
-    const types = ["Simple Majority", "Quadratic", "Ranked-Choice", "Cumulative"];
-    return types[type] || "Unknown";
   };
 
   const formatVoteData = (voteData: any) => {
@@ -167,7 +145,7 @@ const Dashboard = () => {
               </TableHeader>
               <TableBody>
                 {votingHistory.map((vote) => {
-                  const effectiveStatus = getEffectiveStatus(vote.status, Number(vote.startDate), Number(vote.endDate));
+                  const effectiveStatus = getEffectiveStatus(Number(vote.startDate), Number(vote.endDate));
                   return (
                     <Collapsible asChild key={vote.address}>
                       <>
@@ -177,7 +155,7 @@ const Dashboard = () => {
                               {vote.title}
                             </Link>
                           </TableCell>
-                          <TableCell>{getElectionTypeLabel(vote.electionType)}</TableCell>
+                          <TableCell>{vote.electionType}</TableCell>
                           <TableCell>{getStatusBadge(effectiveStatus)}</TableCell>
                           <TableCell className="text-right">
                             <CollapsibleTrigger asChild>

@@ -6,23 +6,27 @@ import { BrowserRouter } from "react-router-dom";
 import Layout from "./components/layout/Layout";
 import { WalletProvider } from "./context/WalletContext";
 import { AnimatedRoutes } from "./components/AnimatedRoutes";
+import { ApolloProvider } from "@apollo/client";
+import { client } from "./lib/apollo";
 
 const queryClient = new QueryClient();
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <WalletProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Layout>
-            <AnimatedRoutes />
-          </Layout>
-        </BrowserRouter>
-      </WalletProvider>
-    </TooltipProvider>
-  </QueryClientProvider>
+  <ApolloProvider client={client}>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <WalletProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Layout>
+              <AnimatedRoutes />
+            </Layout>
+          </BrowserRouter>
+        </WalletProvider>
+      </TooltipProvider>
+    </QueryClientProvider>
+  </ApolloProvider>
 );
 
 export default App;

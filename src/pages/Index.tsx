@@ -6,44 +6,46 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PlusCircle, ArrowRight, Users, Clock, Vote, Activity, Archive } from "lucide-react";
 import { CreateElectionModal } from "@/components/modals/CreateElectionModal";
 import { useWallet } from "@/context/WalletContext";
-import { ethers } from "ethers";
-import { ELECTION_FACTORY_ADDRESS, ELECTION_FACTORY_ABI, ELECTION_ABI } from "@/contracts";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/EmptyState";
 import { fetchFromIPFS } from "@/lib/ipfs";
 import { motion } from "framer-motion";
 import { AnimatedCounter } from "@/components/AnimatedCounter";
+import { useQuery, gql } from "@apollo/client";
+
+const GET_ELECTIONS = gql`
+  query GetElections {
+    elections(orderBy: startDate, orderDirection: desc, first: 100) {
+      id
+      creator
+      startDate
+      endDate
+      metadataURI
+      electionType
+      votes {
+        id
+      }
+    }
+  }
+`;
 
 const ElectionCard = ({ election, index }: { election: any, index: number }) => {
-  const getEffectiveStatus = (status: number, startDate: number, endDate: number) => {
+  const getEffectiveStatus = (startDate: number, endDate: number) => {
     const nowInSeconds = Date.now() / 1000;
-    if (status !== 2 && nowInSeconds >= endDate) {
-      return 2; // Ended
-    }
-    if (status === 0 && nowInSeconds >= startDate) {
-      return 1; // Active
-    }
-    return status;
+    if (nowInSeconds >= endDate) return 2; // Ended
+    if (nowInSeconds < startDate) return 0; // Upcoming
+    return 1; // Active
   };
 
-  const effectiveStatus = getEffectiveStatus(election.status, Number(election.startDate), Number(election.endDate));
+  const effectiveStatus = getEffectiveStatus(Number(election.startDate), Number(election.endDate));
 
   const getStatusChip = (status: number) => {
     switch (status) {
-      case 1: // Active
-        return 'bg-green-900/50 text-green-300 border border-green-700/60';
-      case 2: // Ended
-        return 'bg-gray-700/50 text-gray-300 border border-gray-600/60';
-      case 0: // Upcoming
-        return 'bg-blue-900/50 text-blue-300 border border-blue-700/60';
-      default:
-        return '';
+      case 1: return 'bg-green-900/50 text-green-300 border border-green-700/60';
+      case 2: return 'bg-gray-700/50 text-gray-300 border border-gray-600/60';
+      case 0: return 'bg-blue-900/50 text-blue-300 border border-blue-700/60';
+      default: return '';
     }
-  };
-
-  const getElectionTypeLabel = (type: number) => {
-    const types = ["Simple Majority", "Quadratic", "Ranked-Choice", "Cumulative"];
-    return types[type] || "Unknown";
   };
 
   return (
@@ -66,11 +68,11 @@ const ElectionCard = ({ election, index }: { election: any, index: number }) => 
           <div className="flex justify-between items-center text-sm text-muted-foreground">
             <div className="flex items-center gap-2">
               <Vote className="h-4 w-4" />
-              <span>{getElectionTypeLabel(election.electionType)}</span>
+              <span>{election.electionType}</span>
             </div>
             <div className="flex items-center gap-2">
               <Users className="h-4 w-4" />
-              <span>{election.totalVoters.toString()} Voters</span>
+              <span>{election.totalVoters} Voters</span>
             </div>
           </div>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -94,72 +96,45 @@ const ElectionCard = ({ election, index }: { election: any, index: number }) => 
 
 const Index = () => {
   const [isCreateModalOpen, setCreateModalOpen] = useState(false);
-  const { isConnected, provider } = useWallet();
+  const { isConnected } = useWallet();
   const [elections, setElections] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { loading: isLoading, data: subgraphData } = useQuery(GET_ELECTIONS);
 
   useEffect(() => {
-    const fetchElections = async () => {
-      if (!provider) {
-        setIsLoading(false);
-        return;
-      }
-      setIsLoading(true);
-      try {
-        const factoryContract = new ethers.Contract(ELECTION_FACTORY_ADDRESS, ELECTION_FACTORY_ABI, provider);
-        const electionAddresses = await factoryContract.getDeployedElections();
+    if (subgraphData?.elections) {
+      const fetchMetadata = async () => {
+        const electionsWithMetadata = await Promise.all(
+          subgraphData.elections.map(async (election: any) => {
+            try {
+              const ipfsHash = election.metadataURI.replace('ipfs://', '');
+              const metadata = await fetchFromIPFS(ipfsHash);
+              return {
+                ...election,
+                address: election.id,
+                totalVoters: election.votes.length,
+                ...metadata,
+              };
+            } catch (e) {
+              console.error(`Failed to load metadata for ${election.id}:`, e);
+              return { ...election, address: election.id, title: "Error loading title", totalVoters: election.votes.length };
+            }
+          })
+        );
+        setElections(electionsWithMetadata);
+      };
+      fetchMetadata();
+    }
+  }, [subgraphData]);
 
-        const electionsDataPromises = electionAddresses.map(async (address: string) => {
-          try {
-            const electionContract = new ethers.Contract(address, ELECTION_ABI, provider);
-            const details = await electionContract.getElectionDetails();
-            
-            const onChainData = {
-              address,
-              creator: details[0],
-              status: Number(details[1]),
-              electionType: Number(details[2]),
-              endDate: details[3],
-              metadataURI: details[4],
-              totalVoters: details[5],
-              startDate: details[6],
-            };
-
-            const ipfsHash = onChainData.metadataURI.replace('ipfs://', '');
-            const metadata = await fetchFromIPFS(ipfsHash);
-
-            return { ...onChainData, ...metadata };
-          } catch (e) {
-            console.error(`Failed to load election ${address}:`, e);
-            return null;
-          }
-        });
-
-        const electionsData = (await Promise.all(electionsDataPromises)).filter(e => e !== null);
-        setElections(electionsData.reverse());
-      } catch (error) {
-        console.error("Failed to fetch elections:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchElections();
-  }, [provider]);
-
-  const getEffectiveStatus = (status: number, startDate: number, endDate: number) => {
+  const getEffectiveStatus = (startDate: number, endDate: number) => {
     const nowInSeconds = Date.now() / 1000;
-    if (status !== 2 && nowInSeconds >= endDate) {
-      return 2; // Ended
-    }
-    if (status === 0 && nowInSeconds >= startDate) {
-      return 1; // Active
-    }
-    return status;
+    if (nowInSeconds >= endDate) return 2; // Ended
+    if (nowInSeconds < startDate) return 0; // Upcoming
+    return 1; // Active
   };
 
   const filteredElections = (targetStatus: number) => {
-    return elections.filter(e => getEffectiveStatus(e.status, Number(e.startDate), Number(e.endDate)) === targetStatus);
+    return elections.filter(e => getEffectiveStatus(Number(e.startDate), Number(e.endDate)) === targetStatus);
   };
 
   const renderSkeletons = () => (
@@ -175,7 +150,7 @@ const Index = () => {
   );
 
   const totalElections = elections.length;
-  const activeElections = elections.filter(e => getEffectiveStatus(e.status, Number(e.startDate), Number(e.endDate)) === 1).length;
+  const activeElections = elections.filter(e => getEffectiveStatus(Number(e.startDate), Number(e.endDate)) === 1).length;
   const totalVotes = elections.reduce((sum, election) => sum + Number(election.totalVoters), 0);
 
   return (
