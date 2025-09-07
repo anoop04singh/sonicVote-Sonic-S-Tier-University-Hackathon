@@ -1,4 +1,4 @@
-type Election @entity {
+type Election @entity(immutable: true) {
   id: ID! # The contract address
   creator: Bytes!
   startDate: BigInt!
@@ -9,7 +9,7 @@ type Election @entity {
   votes: [Vote!]! @derivedFrom(field: "election")
 }
 
-type Vote @entity {
+type Vote @entity(immutable: true) {
   id: ID! # A unique ID, e.g., transaction hash + log index
   election: Election! # Link to the Election this vote belongs to
   voter: Bytes! # The address of the voter
