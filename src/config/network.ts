@@ -1,5 +1,5 @@
 export const sonicNetwork = {
-  chainId: '0xfa25', // 64165 in decimal
+  chainId: '0x92', // 146 in decimal
   chainName: 'Sonic Mainnet',
   nativeCurrency: {
     name: 'Sonic',
