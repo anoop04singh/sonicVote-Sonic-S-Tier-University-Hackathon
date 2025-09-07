@@ -33,14 +33,16 @@ const Dashboard = () => {
           try {
             const electionContract = new ethers.Contract(electionAddress, ELECTION_ABI, provider);
             
-            // Fetch all vote events and filter client-side for robustness
             const allVoteEvents = await electionContract.queryFilter("VoteCast");
+            
+            // After reviewing the contract ABI, the voter address is the second argument (index 1).
             const userVoteEvent = allVoteEvents.find(
-              (event) => event.args[0].toLowerCase() === address.toLowerCase()
+              (event) => event.args && event.args[1] && event.args[1].toLowerCase() === address.toLowerCase()
             );
 
             if (userVoteEvent) {
-              const ipfsURI = userVoteEvent.args![1];
+              // The IPFS URI is the third argument (index 2).
+              const ipfsURI = userVoteEvent.args![2];
 
               const details = await electionContract.getElectionDetails();
               const onChainData = {
