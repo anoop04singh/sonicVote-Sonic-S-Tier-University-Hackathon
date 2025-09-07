@@ -148,6 +148,8 @@ const ElectionDetails = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isVoting, setIsVoting] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState("");
+  const [hasVoted, setHasVoted] = useState(false);
+  const [isCheckingVoteStatus, setIsCheckingVoteStatus] = useState(true);
 
   useEffect(() => {
     const fetchElectionDetails = async () => {
@@ -193,20 +195,54 @@ const ElectionDetails = () => {
     fetchElectionDetails();
   }, [provider, electionAddress]);
 
+  useEffect(() => {
+    const checkVoteStatus = async () => {
+      if (!provider || !electionAddress || !userAddress) {
+        setIsCheckingVoteStatus(false);
+        return;
+      }
+      setIsCheckingVoteStatus(true);
+      try {
+        const electionContract = new ethers.Contract(electionAddress, ELECTION_ABI, provider);
+        const userHasVoted = await electionContract.voters(userAddress);
+        setHasVoted(userHasVoted);
+      } catch (error) {
+        console.error("Failed to check vote status:", error);
+        setHasVoted(false);
+      } finally {
+        setIsCheckingVoteStatus(false);
+      }
+    };
+
+    if (election) {
+      checkVoteStatus();
+    }
+  }, [provider, electionAddress, userAddress, election]);
+
   const handleVote = async (voteData: any) => {
     if (!isConnected || !signer || !electionAddress || !userAddress) {
       showError("Please connect your wallet to vote.");
       return;
     }
+
     setIsVoting(true);
+    setLoadingMessage("Verifying your voting eligibility...");
+
     try {
+      const electionContract = new ethers.Contract(electionAddress, ELECTION_ABI, signer);
+      const userHasVoted = await electionContract.voters(userAddress);
+      if (userHasVoted) {
+        showError("You have already voted in this election.");
+        setHasVoted(true);
+        setIsVoting(false);
+        return;
+      }
+
       let voteJSON: object;
       let tx;
 
       setLoadingMessage("Uploading vote data to IPFS...");
       
-      const electionContract = new ethers.Contract(electionAddress, ELECTION_ABI, signer);
-
       switch (election.electionType) {
         case 0: // Simple Majority
           voteJSON = { electionId: electionAddress, selectedOption: voteData, voter: userAddress };
@@ -238,6 +274,7 @@ const ElectionDetails = () => {
 
       await tx.wait();
       showSuccess("Your vote has been cast successfully!");
+      setHasVoted(true);
     } catch (error: any) {
       console.error("Vote failed:", error);
       showError(error?.reason || "An error occurred while voting.");
@@ -260,12 +297,25 @@ const ElectionDetails = () => {
   const renderVotingCard = () => {
     if (!election || !userAddress) return null;
     
+    if (hasVoted) {
+      return (
+        <Alert variant="default" className="bg-green-900/50 text-green-300 border-green-700/60">
+          <ShieldCheck className="h-4 w-4" />
+          <AlertTitle>Vote Submitted</AlertTitle>
+          <AlertDescription>
+            Your vote has been successfully recorded for this election. Thank you for your participation.
+          </AlertDescription>
+        </Alert>
+      );
+    }
+
     const effectiveStatus = getEffectiveStatus(election.status, Number(election.startDate), Number(election.endDate));
     const isWhitelisted = election.isRestricted 
       ? election.voterList.map((a: string) => a.toLowerCase()).includes(userAddress.toLowerCase())
       : true;
     
     const canVote = effectiveStatus === 1 && isWhitelisted;
+    const voteDisabled = !canVote || isVoting || isCheckingVoteStatus;
     const electionTypes = ["Simple Majority", "Quadratic", "Ranked-Choice", "Cumulative"];
     const type = electionTypes[election.electionType];
 
@@ -283,13 +333,13 @@ const ElectionDetails = () => {
         {(() => {
           switch (type) {
             case 'Simple Majority':
-              return <SimpleVotingCard options={election.options} onVote={handleVote} disabled={!canVote} />;
+              return <SimpleVotingCard options={election.options} onVote={handleVote} disabled={voteDisabled} />;
             case 'Quadratic':
-              return <QuadraticVotingCard options={election.options} onVote={handleVote} disabled={!canVote} voteCredits={election.voteCredits} />;
+              return <QuadraticVotingCard options={election.options} onVote={handleVote} disabled={voteDisabled} voteCredits={election.voteCredits} />;
             case 'Ranked-Choice':
-              return <RankedChoiceVotingCard options={election.options} onVote={handleVote} disabled={!canVote} />;
+              return <RankedChoiceVotingCard options={election.options} onVote={handleVote} disabled={voteDisabled} />;
             case 'Cumulative':
-              return <CumulativeVotingCard options={election.options} onVote={handleVote} disabled={!canVote} voteCredits={election.voteCredits} />;
+              return <CumulativeVotingCard options={election.options} onVote={handleVote} disabled={voteDisabled} voteCredits={election.voteCredits} />;
             default:
               return null;
           }
