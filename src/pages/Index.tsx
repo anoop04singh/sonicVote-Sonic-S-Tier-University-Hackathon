@@ -11,7 +11,8 @@ import { EmptyState } from "@/components/EmptyState";
 import { fetchFromIPFS } from "@/lib/ipfs";
 import { motion } from "framer-motion";
 import { AnimatedCounter } from "@/components/AnimatedCounter";
-import { useQuery, gql } from "@apollo/client";
+import { gql } from "@apollo/client";
+import { useQuery } from "@apollo/client/react";
 
 const GET_ELECTIONS = gql`
   query GetElections {

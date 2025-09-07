@@ -5,7 +5,7 @@ import { BrowserRouter } from "react-router-dom";
 import Layout from "./components/layout/Layout";
 import { WalletProvider } from "./context/WalletContext";
 import { AnimatedRoutes } from "./components/AnimatedRoutes";
-import { ApolloProvider } from "@apollo/client";
+import { ApolloProvider } from "@apollo/client/react";
 import { client } from "./lib/apollo";
 
 const App = () => (

@@ -10,7 +10,8 @@ import { fetchFromIPFS } from "@/lib/ipfs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/EmptyState";
 import { ChevronDown, ExternalLink } from "lucide-react";
-import { useQuery, gql } from "@apollo/client";
+import { gql } from "@apollo/client";
+import { useQuery } from "@apollo/client/react";
 
 const GET_VOTING_HISTORY = gql`
   query GetVotingHistory($voterAddress: Bytes!) {
