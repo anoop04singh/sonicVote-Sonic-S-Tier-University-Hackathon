@@ -1,14 +1,11 @@
-// NOTE: These details are based on the 'SonicBlockchainVotingDocumentation.txt' file.
-// Please update them if the network configuration changes.
-
 export const sonicNetwork = {
-  chainId: '0x3909', // 14601 in decimal
-  chainName: 'Sonic Testnet',
+  chainId: '0xfa25', // 64165 in decimal
+  chainName: 'Sonic Mainnet',
   nativeCurrency: {
     name: 'Sonic',
     symbol: 'S',
     decimals: 18,
   },
-  rpcUrls: ['https://rpc.testnet.soniclabs.com'],
-  blockExplorerUrls: ['https://testnet.sonicscan.org'],
+  rpcUrls: ['https://rpc.mainnet.sonic.network/'],
+  blockExplorerUrls: ['https://explorer.sonic.game/'],
 };
