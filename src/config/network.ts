@@ -7,5 +7,5 @@ export const sonicNetwork = {
     decimals: 18,
   },
   rpcUrls: ['https://rpc.soniclabs.com'],
-  blockExplorerUrls: ['https://explorer.sonic.game/'],
+  blockExplorerUrls: ['https://sonicscan.org'],
 };
