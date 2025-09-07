@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useWallet } from "@/context/WalletContext";
 import { Link } from "react-router-dom";
 import { ethers } from "ethers";
@@ -9,6 +11,7 @@ import { ELECTION_FACTORY_ADDRESS, ELECTION_FACTORY_ABI, ELECTION_ABI } from "@/
 import { fetchFromIPFS } from "@/lib/ipfs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/EmptyState";
+import { ChevronDown, ExternalLink } from "lucide-react";
 
 const Dashboard = () => {
   const { address, provider } = useWallet();
@@ -29,9 +32,14 @@ const Dashboard = () => {
         const historyPromises = electionAddresses.map(async (electionAddress: string) => {
           try {
             const electionContract = new ethers.Contract(electionAddress, ELECTION_ABI, provider);
-            const hasVoted = await electionContract.voters(address);
+            
+            const filter = electionContract.filters.VoteCasted(address);
+            const events = await electionContract.queryFilter(filter);
 
-            if (hasVoted) {
+            if (events.length > 0) {
+              const voteEvent = events[0];
+              const ipfsURI = voteEvent.args![1];
+
               const details = await electionContract.getElectionDetails();
               const onChainData = {
                 address: electionAddress,
@@ -43,7 +51,11 @@ const Dashboard = () => {
               };
               const ipfsHash = onChainData.metadataURI.replace('ipfs://', '');
               const metadata = await fetchFromIPFS(ipfsHash);
-              return { ...onChainData, ...metadata };
+              
+              const voteIpfsHash = ipfsURI.replace('ipfs://', '');
+              const voteData = await fetchFromIPFS(voteIpfsHash);
+
+              return { ...onChainData, ...metadata, ipfsURI, voteData };
             }
             return null;
           } catch (e) {
@@ -89,6 +101,22 @@ const Dashboard = () => {
     return types[type] || "Unknown";
   };
 
+  const formatVoteData = (voteData: any) => {
+    if (!voteData) return "N/A";
+    if (voteData.selectedOption) {
+      return `Selected: "${voteData.selectedOption}"`;
+    }
+    if (voteData.votes) {
+      return `Distributed votes: ${Object.entries(voteData.votes)
+        .map(([option, count]) => `${option}: ${count} votes`)
+        .join(', ')}`;
+    }
+    if (voteData.ranks) {
+      return `Ranked: ${voteData.ranks.map((rank: string, index: number) => `${index + 1}. ${rank}`).join(', ')}`;
+    }
+    return "Could not parse vote data.";
+  };
+
   return (
     <div className="space-y-8">
       <div>
@@ -111,7 +139,7 @@ const Dashboard = () => {
       <Card className="bg-card/50 backdrop-blur-sm border-0">
         <CardHeader>
           <CardTitle>Voting History</CardTitle>
-          <CardDescription>A record of all elections you've participated in.</CardDescription>
+          <CardDescription>A record of all elections you've participated in. Click the arrow to expand for details.</CardDescription>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -126,24 +154,59 @@ const Dashboard = () => {
                 <TableRow>
                   <TableHead>Election</TableHead>
                   <TableHead>Type</TableHead>
-                  <TableHead className="text-right">Status</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right w-[100px]">Details</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {votingHistory.map((vote) => {
                   const effectiveStatus = getEffectiveStatus(vote.status, Number(vote.startDate), Number(vote.endDate));
                   return (
-                    <TableRow key={vote.address}>
-                      <TableCell className="font-medium">
-                        <Link to={`/election/${vote.address}`} className="hover:underline text-primary">
-                          {vote.title}
-                        </Link>
-                      </TableCell>
-                      <TableCell>{getElectionTypeLabel(vote.electionType)}</TableCell>
-                      <TableCell className="text-right">
-                        {getStatusBadge(effectiveStatus)}
-                      </TableCell>
-                    </TableRow>
+                    <Collapsible asChild key={vote.address}>
+                      <>
+                        <TableRow>
+                          <TableCell className="font-medium">
+                            <Link to={`/election/${vote.address}`} className="hover:underline text-primary">
+                              {vote.title}
+                            </Link>
+                          </TableCell>
+                          <TableCell>{getElectionTypeLabel(vote.electionType)}</TableCell>
+                          <TableCell>{getStatusBadge(effectiveStatus)}</TableCell>
+                          <TableCell className="text-right">
+                            <CollapsibleTrigger asChild>
+                              <Button variant="ghost" size="sm" className="w-9 p-0">
+                                <ChevronDown className="h-4 w-4" />
+                                <span className="sr-only">Toggle details</span>
+                              </Button>
+                            </CollapsibleTrigger>
+                          </TableCell>
+                        </TableRow>
+                        <CollapsibleContent asChild>
+                          <TableRow>
+                            <TableCell colSpan={4} className="p-0">
+                              <div className="p-4 bg-muted/30">
+                                <h4 className="font-semibold mb-2 text-sm">Your Vote Details</h4>
+                                <div className="space-y-1 text-sm text-muted-foreground">
+                                  <p>{formatVoteData(vote.voteData)}</p>
+                                  <div className="flex items-center gap-2">
+                                    <span>IPFS CID:</span>
+                                    <a 
+                                      href={`https://gateway.pinata.cloud/ipfs/${vote.ipfsURI.replace('ipfs://', '')}`} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer"
+                                      className="font-mono text-xs text-primary hover:underline flex items-center"
+                                    >
+                                      {vote.ipfsURI.replace('ipfs://', '').substring(0, 20)}...
+                                      <ExternalLink className="h-3 w-3 ml-1" />
+                                    </a>
+                                  </div>
+                                </div>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        </CollapsibleContent>
+                      </>
+                    </Collapsible>
                   );
                 })}
               </TableBody>

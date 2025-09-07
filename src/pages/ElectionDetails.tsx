@@ -194,7 +194,7 @@ const ElectionDetails = () => {
   }, [provider, electionAddress]);
 
   const handleVote = async (voteData: any) => {
-    if (!isConnected || !signer || !electionAddress) {
+    if (!isConnected || !signer || !electionAddress || !userAddress) {
       showError("Please connect your wallet to vote.");
       return;
     }
@@ -209,14 +209,14 @@ const ElectionDetails = () => {
 
       switch (election.electionType) {
         case 0: // Simple Majority
-          voteJSON = { electionId: electionAddress, selectedOption: voteData };
+          voteJSON = { electionId: electionAddress, selectedOption: voteData, voter: userAddress };
           const simpleVoteIpfsHash = await uploadToPinata(voteJSON);
           setLoadingMessage("Submitting your vote on-chain...");
           tx = await electionContract.castVoteSimple(voteData, `ipfs://${simpleVoteIpfsHash}`);
           break;
         case 1: // Quadratic
         case 3: // Cumulative
-          voteJSON = { electionId: electionAddress, votes: voteData };
+          voteJSON = { electionId: electionAddress, votes: voteData, voter: userAddress };
           const distVoteIpfsHash = await uploadToPinata(voteJSON);
           setLoadingMessage("Submitting your vote on-chain...");
           const optionIds = Object.keys(voteData);
@@ -227,7 +227,7 @@ const ElectionDetails = () => {
           const rankedOptions = Object.entries(voteData)
             .sort(([, rankA], [, rankB]) => (rankA as number) - (rankB as number))
             .map(([optionText]) => optionText);
-          voteJSON = { electionId: electionAddress, ranks: rankedOptions };
+          voteJSON = { electionId: electionAddress, ranks: rankedOptions, voter: userAddress };
           const rankedVoteIpfsHash = await uploadToPinata(voteJSON);
           setLoadingMessage("Submitting your vote on-chain...");
           tx = await electionContract.castVoteRankedChoice(rankedOptions, `ipfs://${rankedVoteIpfsHash}`);
