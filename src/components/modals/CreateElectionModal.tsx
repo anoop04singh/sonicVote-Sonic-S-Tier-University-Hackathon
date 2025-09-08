@@ -264,15 +264,12 @@ export const CreateElectionModal = ({ isOpen, onOpenChange }: CreateElectionModa
                     name="electionType"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="flex items-center">
-                          Election Type
+                        <div className="flex items-center justify-between mb-2">
+                          <FormLabel>Election Type</FormLabel>
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <Info
-                                  className="h-4 w-4 ml-2 text-muted-foreground cursor-pointer"
-                                  onMouseDown={(e) => e.preventDefault()}
-                                />
+                                <Info className="h-4 w-4 text-muted-foreground cursor-help" />
                               </TooltipTrigger>
                               <TooltipContent side="bottom" className="max-w-xs p-4">
                                 <div className="space-y-3">
@@ -286,7 +283,7 @@ export const CreateElectionModal = ({ isOpen, onOpenChange }: CreateElectionModa
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
-                        </FormLabel>
+                        </div>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
                             <SelectTrigger><SelectValue placeholder="Select a voting method" /></SelectTrigger>
