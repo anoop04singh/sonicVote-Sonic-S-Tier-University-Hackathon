@@ -20,6 +20,8 @@ dataSources:
       abis:
         - name: ElectionFactory
           file: ./abis/ElectionFactory.json
+        - name: Election
+          file: ./abis/Election.json
       eventHandlers:
         - event: ElectionCreated(indexed address,indexed address)
           handler: handleElectionCreated
