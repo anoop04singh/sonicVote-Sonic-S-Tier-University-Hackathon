@@ -43,25 +43,33 @@ const Header = () => {
                   </div>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end" forceMount>
-                <DropdownMenuLabel className="font-normal">
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">My Account</p>
-                    <p className="text-xs leading-none text-muted-foreground">
-                      {address}
-                    </p>
+              <DropdownMenuContent className="w-64 bg-card/90 backdrop-blur-lg border border-border/40 shadow-lg" align="end" forceMount>
+                <DropdownMenuLabel className="font-normal p-4">
+                  <div className="flex items-center gap-4">
+                    <Avatar className="h-12 w-12">
+                      <AvatarImage src={`https://api.dicebear.com/8.x/bottts/svg?seed=${address}`} alt="Avatar" />
+                      <AvatarFallback>
+                        <User />
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex flex-col space-y-1 overflow-hidden">
+                      <p className="text-base font-medium leading-none">My Account</p>
+                      <p className="text-sm leading-none text-muted-foreground truncate">
+                        {address}
+                      </p>
+                    </div>
                   </div>
                 </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
+                <DropdownMenuSeparator className="bg-border/40" />
+                <DropdownMenuItem asChild className="cursor-pointer text-base p-3 focus:bg-accent/50">
                   <Link to="/dashboard">
-                    <LayoutDashboard className="mr-2 h-4 w-4" />
+                    <LayoutDashboard className="mr-3 h-5 w-5 text-primary" />
                     <span>Dashboard</span>
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={disconnectWallet}>
-                  <LogOut className="mr-2 h-4 w-4" />
+                <DropdownMenuSeparator className="bg-border/40" />
+                <DropdownMenuItem onClick={disconnectWallet} className="cursor-pointer text-base p-3 text-red-400 focus:bg-red-900/50 focus:text-red-300">
+                  <LogOut className="mr-3 h-5 w-5" />
                   <span>Log out</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
