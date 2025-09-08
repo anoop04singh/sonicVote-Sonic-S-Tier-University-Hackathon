@@ -10,7 +10,7 @@ import { client } from "./lib/apollo";
 
 const App = () => (
   <ApolloProvider client={client}>
-    <TooltipProvider>
+    <TooltipProvider delayDuration={200}>
       <WalletProvider>
         <Toaster />
         <Sonner />
