@@ -36,6 +36,7 @@ const Dashboard = () => {
   const { loading: isLoading, data: subgraphData } = useQuery(GET_VOTING_HISTORY, {
     variables: { voterAddress: address?.toLowerCase() },
     skip: !address,
+    fetchPolicy: 'cache-and-network', // Fetches from cache first, then network
   });
 
   useEffect(() => {

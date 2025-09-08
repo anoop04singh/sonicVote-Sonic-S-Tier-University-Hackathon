@@ -99,7 +99,10 @@ const Index = () => {
   const [isCreateModalOpen, setCreateModalOpen] = useState(false);
   const { isConnected } = useWallet();
   const [elections, setElections] = useState<any[]>([]);
-  const { loading: isLoading, data: subgraphData } = useQuery(GET_ELECTIONS);
+  const { loading: isLoading, data: subgraphData } = useQuery(GET_ELECTIONS, {
+    fetchPolicy: 'cache-and-network', // Fetches from cache first, then network
+    pollInterval: 15000, // Refreshes data every 15 seconds
+  });
 
   useEffect(() => {
     if (subgraphData?.elections) {
