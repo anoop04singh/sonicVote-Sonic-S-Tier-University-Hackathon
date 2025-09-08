@@ -3,7 +3,10 @@
 
 **SonicVote** is a decentralized, transparent, and secure voting platform built on the **Sonic Mainnet**. It empowers communities and organizations to create, manage, and participate in a variety of election types with confidence. The platform is designed from the ground up for efficiency, scalability, and cost-effectiveness, leveraging a modern Web3 technology stack to deliver a seamless user experience.
 
-**[➡️ Live Demo Link](https://sonicvote.vercel.app)**
+Deployed on Sonic Mainnet, hosted on Vercel! **[sonicvote.vercel.app](https://sonicvote.vercel.app)**
+
+Read more about implementation and interface in this [Medium Article](https://medium.com/@singanoop04/sonicvote-building-a-blazing-fast-decentralized-voting-platform-on-the-sonic-blockchain-e9bb0fa3e318).
+
 
 ---
 
@@ -204,3 +207,4 @@ Please note that due to the nature of blockchain indexing, there can be a delay 
 ---
 
 Built with ❤️ for the Sonic Hackathon by **0xanoop**.
+
