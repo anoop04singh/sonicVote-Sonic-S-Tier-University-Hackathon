@@ -269,7 +269,10 @@ export const CreateElectionModal = ({ isOpen, onOpenChange }: CreateElectionModa
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <Info className="h-4 w-4 ml-2 text-muted-foreground cursor-pointer" />
+                                <Info
+                                  className="h-4 w-4 ml-2 text-muted-foreground cursor-pointer"
+                                  onMouseDown={(e) => e.preventDefault()}
+                                />
                               </TooltipTrigger>
                               <TooltipContent side="bottom" className="max-w-xs p-4">
                                 <div className="space-y-3">
