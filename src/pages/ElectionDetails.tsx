@@ -15,8 +15,10 @@ import { ELECTION_ABI } from "@/contracts";
 import { Skeleton } from "@/components/ui/skeleton";
 import { fetchFromIPFS, uploadToPinata } from "@/lib/ipfs";
 import { LoadingModal } from "@/components/modals/LoadingModal";
+import { electionTypeDetails } from "@/data/electionTypes";
 
 const COLORS = ["#FF8042", "#0088FE", "#00C49F", "#FFBB28"];
+const ELECTION_TYPES = ["Simple Majority", "Quadratic", "Ranked-Choice", "Cumulative"];
 
 // --- Voting Card Components ---
 const SimpleVotingCard = ({ options, onVote, disabled }: any) => (
@@ -316,8 +318,7 @@ const ElectionDetails = () => {
     
     const canVote = effectiveStatus === 1 && isWhitelisted;
     const voteDisabled = !canVote || isVoting || isCheckingVoteStatus;
-    const electionTypes = ["Simple Majority", "Quadratic", "Ranked-Choice", "Cumulative"];
-    const type = electionTypes[election.electionType];
+    const type = ELECTION_TYPES[election.electionType];
 
     return (
       <div>
@@ -372,6 +373,8 @@ const ElectionDetails = () => {
   }
 
   const effectiveStatus = getEffectiveStatus(election.status, Number(election.startDate), Number(election.endDate));
+  const electionTypeName = ELECTION_TYPES[election.electionType];
+  const typeDetails = electionTypeDetails[electionTypeName];
 
   return (
     <>
@@ -389,6 +392,24 @@ const ElectionDetails = () => {
           <Card className="bg-card/50 backdrop-blur-sm border-0"><CardHeader className="flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Eligibility</CardTitle>{election.isRestricted ? <ShieldAlert className="h-4 w-4 text-muted-foreground" /> : <ShieldCheck className="h-4 w-4 text-muted-foreground" />}</CardHeader><CardContent><div className="text-2xl font-bold">{election.isRestricted ? "Restricted" : "Open to All"}</div></CardContent></Card>
           <Card className="bg-card/50 backdrop-blur-sm border-0"><CardHeader className="flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">{effectiveStatus === 0 ? "Time Until Start" : "Time Remaining"}</CardTitle><Clock className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><CountdownTimer endDate={new Date(Number(effectiveStatus === 0 ? election.startDate : election.endDate) * 1000).toISOString()} /></CardContent></Card>
         </div>
+
+        {typeDetails && (
+          <Card className="bg-card/50 backdrop-blur-sm border-0">
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Info className="mr-2 h-5 w-5 text-primary" />
+                About {electionTypeName} Voting
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-muted-foreground">{typeDetails.description}</p>
+              <div>
+                <h4 className="font-semibold text-card-foreground/90">How Results are Calculated</h4>
+                <p className="text-muted-foreground mt-1">{typeDetails.resultCalculation}</p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid md:grid-cols-2 gap-8">
           {renderVotingCard()}
