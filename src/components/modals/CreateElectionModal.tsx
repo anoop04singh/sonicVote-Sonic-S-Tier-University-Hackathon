@@ -35,6 +35,7 @@ import { ethers } from "ethers";
 import { ELECTION_FACTORY_ADDRESS, ELECTION_FACTORY_ABI } from "@/contracts";
 import { uploadToPinata } from "@/lib/ipfs";
 import { LoadingModal } from "./LoadingModal";
+import { electionTypeDetails } from "@/data/electionTypes";
 
 const formSchema = z.object({
   title: z.string().min(5, "Title must be at least 5 characters long."),
@@ -110,7 +111,6 @@ export const CreateElectionModal = ({ isOpen, onOpenChange }: CreateElectionModa
     setIsLoading(true);
 
     try {
-      // 1. Prepare and upload metadata to IPFS
       const metadata: { [key: string]: any } = {
         title: values.title,
         description: values.description,
@@ -131,7 +131,6 @@ export const CreateElectionModal = ({ isOpen, onOpenChange }: CreateElectionModa
       
       setLoadingMessage("Deploying your election contract...");
 
-      // 2. Create election on-chain with the IPFS URI
       const factoryContract = new ethers.Contract(ELECTION_FACTORY_ADDRESS, ELECTION_FACTORY_ABI, signer);
       
       const electionTypeMap = {
@@ -170,93 +169,209 @@ export const CreateElectionModal = ({ isOpen, onOpenChange }: CreateElectionModa
     <>
       <LoadingModal isOpen={isLoading} message={loadingMessage} />
       <Dialog open={isOpen} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-3xl bg-card/80 backdrop-blur-lg border border-primary/20 shadow-[0_0_40px_0px_hsl(var(--primary)/0.2)]">
           <DialogHeader>
             <DialogTitle>Create New Election</DialogTitle>
             <DialogDescription>
-              Fill in the details below to create a new election. This will deploy a new smart contract.
+              Fill in the details below to launch a new election contract on the Sonic blockchain.
             </DialogDescription>
           </DialogHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[80vh] overflow-y-auto pr-4">
-              <FormField
-                control={form.control}
-                name="title"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Title</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g., Community Governance Vote" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Description</FormLabel>
-                    <FormControl>
-                      <Textarea placeholder="Describe the purpose of this election." {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                {/* --- Column 1 --- */}
+                <div className="space-y-6">
+                  <FormField
+                    control={form.control}
+                    name="title"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Title</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g., Community Governance Vote" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="description"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Description</FormLabel>
+                        <FormControl>
+                          <Textarea placeholder="Describe the purpose of this election." {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="startDate"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-col">
+                          <FormLabel>Start Date</FormLabel>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <FormControl>
+                                <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !field.value && "text-muted-foreground")}>
+                                  {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
+                                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                </Button>
+                              </FormControl>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date < new Date(new Date().setHours(0,0,0,0))} initialFocus />
+                            </PopoverContent>
+                          </Popover>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="endDate"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-col">
+                          <FormLabel>End Date</FormLabel>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <FormControl>
+                                <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !field.value && "text-muted-foreground")}>
+                                  {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
+                                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                </Button>
+                              </FormControl>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date < (form.getValues("startDate") || new Date(new Date().setHours(0,0,0,0)))} initialFocus />
+                            </PopoverContent>
+                          </Popover>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
+
+                {/* --- Column 2 --- */}
+                <div className="space-y-6">
+                  <FormField
+                    control={form.control}
+                    name="electionType"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center">
+                          Election Type
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Info className="h-4 w-4 ml-2 text-muted-foreground cursor-pointer" />
+                              </TooltipTrigger>
+                              <TooltipContent side="bottom" className="max-w-xs p-4">
+                                <div className="space-y-3">
+                                  {Object.values(electionTypeDetails).map((type) => (
+                                    <div key={type.name}>
+                                      <p className="font-bold text-sm text-foreground">{type.name}</p>
+                                      <p className="text-xs text-muted-foreground">{type.description}</p>
+                                    </div>
+                                  ))}
+                                </div>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger><SelectValue placeholder="Select a voting method" /></SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="Simple Majority">Simple Majority</SelectItem>
+                            <SelectItem value="Quadratic">Quadratic Voting</SelectItem>
+                            <SelectItem value="Ranked-Choice">Ranked-Choice Voting</SelectItem>
+                            <SelectItem value="Cumulative">Cumulative Voting</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  {(electionType === "Quadratic" || electionType === "Cumulative") && (
+                    <FormField
+                      control={form.control}
+                      name="voteCredits"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{electionType === "Quadratic" ? "Vote Credits per User" : "Votes per User"}</FormLabel>
+                          <FormControl><Input type="number" placeholder="e.g., 100" {...field} /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
+                  <div>
+                    <FormLabel>Options</FormLabel>
+                    <div className="space-y-2 mt-2">
+                      {fields.map((field, index) => (
+                        <FormField
+                          key={field.id}
+                          control={form.control}
+                          name={`options.${index}.value`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <div className="flex items-center gap-2">
+                                <FormControl><Input placeholder={`Option ${index + 1}`} {...field} /></FormControl>
+                                {fields.length > 2 && (<Button type="button" variant="destructive" size="icon" onClick={() => remove(index)}><X className="h-4 w-4" /></Button>)}
+                              </div>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      ))}
+                    </div>
+                    <Button type="button" variant="outline" size="sm" className="mt-2" onClick={() => append({ value: "" })}>
+                      <PlusCircle className="h-4 w-4 mr-2" /> Add Option
+                    </Button>
+                  </div>
+                </div>
+              </div>
+              
+              {/* --- Voter Access Section --- */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8">
                 <FormField
                   control={form.control}
-                  name="electionType"
+                  name="voterAccess"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="flex items-center">
-                        Election Type
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Info className="h-4 w-4 ml-2 text-muted-foreground cursor-pointer" />
-                            </TooltipTrigger>
-                            <TooltipContent side="bottom" className="max-w-xs p-4">
-                              <div className="space-y-2 text-sm">
-                                <p><b>Simple Majority:</b> Each voter gets one vote.</p>
-                                <p><b>Quadratic Voting:</b> Voters buy votes using credits.</p>
-                                <p><b>Ranked-Choice:</b> Voters rank options by preference.</p>
-                                <p><b>Cumulative Voting:</b> Voters distribute a block of votes.</p>
-                              </div>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a voting method" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="Simple Majority">Simple Majority</SelectItem>
-                          <SelectItem value="Quadratic">Quadratic Voting</SelectItem>
-                          <SelectItem value="Ranked-Choice">Ranked-Choice Voting</SelectItem>
-                          <SelectItem value="Cumulative">Cumulative Voting</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <FormLabel>Voter Access</FormLabel>
+                      <FormControl>
+                        <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex items-center space-x-4 pt-2">
+                          <FormItem className="flex items-center space-x-2 space-y-0">
+                            <FormControl><RadioGroupItem value="open" /></FormControl>
+                            <FormLabel className="font-normal">Open to all</FormLabel>
+                          </FormItem>
+                          <FormItem className="flex items-center space-x-2 space-y-0">
+                            <FormControl><RadioGroupItem value="restricted" /></FormControl>
+                            <FormLabel className="font-normal">Restricted to a voter list</FormLabel>
+                          </FormItem>
+                        </RadioGroup>
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                {(electionType === "Quadratic" || electionType === "Cumulative") && (
+                {voterAccess === 'restricted' && (
                   <FormField
                     control={form.control}
-                    name="voteCredits"
+                    name="voterList"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>
-                          {electionType === "Quadratic" ? "Vote Credits per User" : "Votes per User"}
-                        </FormLabel>
+                        <FormLabel>Voter List (comma-separated)</FormLabel>
                         <FormControl>
-                          <Input type="number" placeholder="e.g., 100" {...field} />
+                          <Textarea placeholder="e.g., 0x123..., 0x456..." {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -264,176 +379,7 @@ export const CreateElectionModal = ({ isOpen, onOpenChange }: CreateElectionModa
                   />
                 )}
               </div>
-              <div>
-                <FormLabel>Options</FormLabel>
-                <div className="space-y-2 mt-2">
-                  {fields.map((field, index) => (
-                    <FormField
-                      key={field.id}
-                      control={form.control}
-                      name={`options.${index}.value`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <div className="flex items-center gap-2">
-                            <FormControl>
-                              <Input placeholder={`Option ${index + 1}`} {...field} />
-                            </FormControl>
-                            {fields.length > 2 && (
-                              <Button type="button" variant="destructive" size="icon" onClick={() => remove(index)}>
-                                <X className="h-4 w-4" />
-                              </Button>
-                            )}
-                          </div>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  ))}
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="mt-2"
-                  onClick={() => append({ value: "" })}
-                >
-                  <PlusCircle className="h-4 w-4 mr-2" />
-                  Add Option
-                </Button>
-              </div>
-              <FormField
-                control={form.control}
-                name="voterAccess"
-                render={({ field }) => (
-                  <FormItem className="space-y-3">
-                    <FormLabel>Voter Access</FormLabel>
-                    <FormControl>
-                      <RadioGroup
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                        className="flex flex-col space-y-1"
-                      >
-                        <FormItem className="flex items-center space-x-3 space-y-0">
-                          <FormControl>
-                            <RadioGroupItem value="open" />
-                          </FormControl>
-                          <FormLabel className="font-normal">
-                            Open to all
-                          </FormLabel>
-                        </FormItem>
-                        <FormItem className="flex items-center space-x-3 space-y-0">
-                          <FormControl>
-                            <RadioGroupItem value="restricted" />
-                          </FormControl>
-                          <FormLabel className="font-normal">
-                            Restricted to a voter list
-                          </FormLabel>
-                        </FormItem>
-                      </RadioGroup>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              {voterAccess === 'restricted' && (
-                <FormField
-                  control={form.control}
-                  name="voterList"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Voter List</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          placeholder="Enter wallet addresses, separated by commas. e.g., 0x123..., 0x456..."
-                          className="min-h-[100px]"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="startDate"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>Start Date</FormLabel>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button
-                              variant={"outline"}
-                              className={cn(
-                                "w-full pl-3 text-left font-normal",
-                                !field.value && "text-muted-foreground"
-                              )}
-                            >
-                              {field.value ? (
-                                format(field.value, "PPP")
-                              ) : (
-                                <span>Pick a date</span>
-                              )}
-                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                            </Button>
-                          </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={field.value}
-                            onSelect={field.onChange}
-                            disabled={(date) => date < new Date(new Date().setHours(0,0,0,0))}
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="endDate"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>End Date</FormLabel>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button
-                              variant={"outline"}
-                              className={cn(
-                                "w-full pl-3 text-left font-normal",
-                                !field.value && "text-muted-foreground"
-                              )}
-                            >
-                              {field.value ? (
-                                format(field.value, "PPP")
-                              ) : (
-                                <span>Pick a date</span>
-                              )}
-                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                            </Button>
-                          </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={field.value}
-                            onSelect={field.onChange}
-                            disabled={(date) => date < (form.getValues("startDate") || new Date(new Date().setHours(0,0,0,0)))}
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+
               <DialogFooter className="pt-4">
                 <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
                 <Button type="submit">Create Election</Button>
