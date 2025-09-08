@@ -266,23 +266,21 @@ export const CreateElectionModal = ({ isOpen, onOpenChange }: CreateElectionModa
                       <FormItem>
                         <div className="flex items-center justify-between mb-2">
                           <FormLabel>Election Type</FormLabel>
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                              </TooltipTrigger>
-                              <TooltipContent side="bottom" className="max-w-xs p-4">
-                                <div className="space-y-3">
-                                  {Object.values(electionTypeDetails).map((type) => (
-                                    <div key={type.name}>
-                                      <p className="font-bold text-sm text-foreground">{type.name}</p>
-                                      <p className="text-xs text-muted-foreground">{type.description}</p>
-                                    </div>
-                                  ))}
-                                </div>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" className="max-w-xs p-4 z-[100]">
+                              <div className="space-y-3">
+                                {Object.values(electionTypeDetails).map((type) => (
+                                  <div key={type.name}>
+                                    <p className="font-bold text-sm text-foreground">{type.name}</p>
+                                    <p className="text-xs text-muted-foreground">{type.description}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
                         </div>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
