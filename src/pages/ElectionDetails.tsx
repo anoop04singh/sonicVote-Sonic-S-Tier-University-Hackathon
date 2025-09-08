@@ -16,6 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { fetchFromIPFS, uploadToPinata } from "@/lib/ipfs";
 import { LoadingModal } from "@/components/modals/LoadingModal";
 import { electionTypeDetails } from "@/data/electionTypes";
+import ElectionWinner from "@/components/ElectionWinner";
 
 const COLORS = ["#FF8042", "#0088FE", "#00C49F", "#FFBB28"];
 const ELECTION_TYPES = ["Simple Majority", "Quadratic", "Ranked-Choice", "Cumulative"];
@@ -386,6 +387,8 @@ const ElectionDetails = () => {
           <p className="mt-2 text-muted-foreground">{election.description}</p>
         </div>
 
+        {effectiveStatus === 2 && <ElectionWinner election={election} />}
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card className="bg-card/50 backdrop-blur-sm border-0"><CardHeader className="flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Status</CardTitle><Info className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className={`text-2xl font-bold ${effectiveStatus === 1 ? 'text-green-400' : effectiveStatus === 0 ? 'text-blue-400' : 'text-gray-400'}`}>{["Upcoming", "Active", "Ended"][effectiveStatus]}</div></CardContent></Card>
           <Card className="bg-card/50 backdrop-blur-sm border-0"><CardHeader className="flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Total Voters</CardTitle><Users className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{election.totalVoters.toString()}</div></CardContent></Card>
@@ -412,9 +415,9 @@ const ElectionDetails = () => {
         )}
 
         <div className="grid md:grid-cols-2 gap-8 items-start">
-          {renderVotingCard()}
-          <Card className="bg-card/50 backdrop-blur-sm border-0">
-            <CardHeader><CardTitle>Live Results</CardTitle><CardDescription>Current vote distribution.</CardDescription></CardHeader>
+          {effectiveStatus !== 2 && renderVotingCard()}
+          <Card className="bg-card/50 backdrop-blur-sm border-0 md:col-span-2">
+            <CardHeader><CardTitle>Results</CardTitle><CardDescription>Final vote distribution.</CardDescription></CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={350}>
                 <BarChart data={election.options} margin={{ top: 5, right: 20, left: -10, bottom: 75 }}>
