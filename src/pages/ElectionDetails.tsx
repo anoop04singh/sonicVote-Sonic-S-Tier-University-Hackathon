@@ -411,7 +411,7 @@ const ElectionDetails = () => {
           </Card>
         )}
 
-        <div className="grid md:grid-cols-2 gap-8">
+        <div className="grid md:grid-cols-2 gap-8 items-start">
           {renderVotingCard()}
           <Card className="bg-card/50 backdrop-blur-sm border-0">
             <CardHeader><CardTitle>Live Results</CardTitle><CardDescription>Current vote distribution.</CardDescription></CardHeader>
